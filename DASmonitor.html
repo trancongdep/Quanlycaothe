@@ -97,6 +97,8 @@
     const CABLE_Y_POS = 0.5; 
     const DETECTION_RADIUS = 150;
     const ALERT_THRESHOLD = 0.6;
+    // --- THÊM DÒNG NÀY ---
+    const CABLE_LENGTH_KM = 5.0; // Ví dụ: Đổi thành 5km (hoặc số tùy ý)
 
     function resize() {
         mapCanvas.width = mapCanvas.offsetWidth;
@@ -163,7 +165,10 @@
         ctxMap.beginPath();
         ctxMap.moveTo(0, cableY); ctxMap.lineTo(mapCanvas.width, cableY);
         ctxMap.strokeStyle = "#00f2c3"; ctxMap.lineWidth = 3; ctxMap.setLineDash([10, 5]); ctxMap.stroke(); ctxMap.setLineDash([]);
-        ctxMap.fillStyle = "#00f2c3"; ctxMap.font = "14px Arial"; ctxMap.fillText("Tuyến Cáp Ngầm 220kV (Km 0.0 - Km 1.0)", 10, cableY - 10);
+        ctxMap.fillStyle = "#00f2c3"; ctxMap.font = "14px Arial"; 
+        //ctxMap.fillText("Tuyến Cáp Ngầm 220kV (Km 0.0 - Km 1.0)", 10, cableY - 10);
+        // Dùng dấu huyền (backtick `) để truyền biến vào chuỗi
+        ctxMap.fillText(`Tuyến Cáp Ngầm 220kV (Km 0.0 - Km ${CABLE_LENGTH_KM})`, 10, cableY - 10);
 
         // Vẽ Phương tiện (Sync từ hiện trường)
         vehicles.forEach(v => {
@@ -187,7 +192,9 @@
             document.getElementById('sys-text').innerText = "PHÁT HIỆN NGUY HIỂM!";
             document.getElementById('sys-text').style.color = "var(--danger)";
             
-            const km = (data.threatLoc / mapCanvas.width).toFixed(3);
+            //const km = (data.threatLoc / mapCanvas.width).toFixed(3);
+            // Nhân tỷ lệ % với tổng chiều dài cáp
+            const km = ((data.threatLoc / mapCanvas.width) * CABLE_LENGTH_KM).toFixed(3);
             alertBox.style.display = "block";
             alertBox.innerText = `⚠️ XÂM NHẬP TẠI KM ${km}`;
             
