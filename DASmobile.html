@@ -1,1 +1,143 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MÔ PHỎNG HIỆN TRƯỜNG</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    
+    <style>
+        body { margin: 0; font-family: sans-serif; background: #222; color: white; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        #control-panel { padding: 15px; background: #333; text-align: center; }
+        .btn { width: 30%; padding: 15px 5px; margin: 5px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.9rem; cursor: pointer; color: white; opacity: 0.6; transition: 0.2s; }
+        .btn.active { transform: scale(1.05); opacity: 1; box-shadow: 0 0 10px white; border: 2px solid white; }
+        .excavator { background: #ff8d00; }
+        .drill { background: #ff3e3e; }
+        .car { background: #3e82ff; }
+        .clear { background: #555; width: 95%; margin-top: 10px; opacity: 1; }
+        
+        #sim-map { flex: 1; position: relative; background: #111; margin: 10px; border: 2px solid #555; overflow: hidden; touch-action: none; border-radius: 8px; }
+        .cable-line { position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: #00f2c3; border-bottom: 2px dashed #00f2c3; opacity: 0.5; }
+        .marker { position: absolute; font-size: 35px; transform: translate(-50%, -50%); pointer-events: none; animation: pop 0.3s ease-out; }
+        @keyframes pop { 0% { transform: translate(-50%, -50%) scale(0); } 100% { transform: translate(-50%, -50%) scale(1); } }
+        
+        h2 { margin: 0 0 5px 0; font-size: 1.1rem; color: #e14eca; }
+        p { margin: 0; color: #aaa; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
 
+    <div id="control-panel">
+        <h2>THIẾT BỊ TẠO HIỆN TRƯỜNG</h2>
+        <p>Chọn phương tiện & Chạm vào vùng đen bên dưới</p>
+        <div style="margin-top: 15px;">
+            <button class="btn excavator" onclick="selectTool('excavator')">🚜 Xe Cuốc</button>
+            <button class="btn drill" onclick="selectTool('drill')">🔩 Khoan</button>
+            <button class="btn car" onclick="selectTool('car')">🚗 Ô tô</button>
+            <button class="btn clear" onclick="clearScene()">🗑️ XÓA SẠCH</button>
+        </div>
+    </div>
+
+    <div id="sim-map" onmousedown="handleInput(event)" ontouchstart="handleInput(event)">
+        <div class="cable-line"></div>
+        <div style="position:absolute; top:10px; left:10px; color:#555; font-size:12px;">Vùng mô phỏng mặt đất</div>
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -150%); color: #00f2c3; opacity:0.5; font-size: 0.8rem;">--- TUYẾN CÁP NGẦM ---</div>
+    </div>
+
+<script>
+    // --- 1. CẤU HÌNH FIREBASE CỦA BẠN ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyBAKgjfwqPcYhUxLo__ISxd7xax3GYZDkk",
+        authDomain: "das-2025.firebaseapp.com",
+        databaseURL: "https://das-2025-default-rtdb.firebaseio.com",
+        projectId: "das-2025",
+        storageBucket: "das-2025.firebasestorage.app",
+        messagingSenderId: "911247179996",
+        appId: "1:911247179996:web:ecce7b5227266573807419"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // --- 2. LOGIC ĐIỀU KHIỂN ---
+    let selectedType = null;
+    const mapDiv = document.getElementById('sim-map');
+
+    function selectTool(type) {
+        selectedType = type;
+        document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('.' + type).classList.add('active');
+    }
+
+    function handleInput(e) {
+        // Ngăn chặn hành vi mặc định (zoom/scroll)
+        if(e.type === 'touchstart') e.preventDefault();
+        
+        if (!selectedType) {
+            alert("Vui lòng chọn loại phương tiện ở trên trước!");
+            return;
+        }
+
+        const rect = mapDiv.getBoundingClientRect();
+        let clientX, clientY;
+
+        if(e.type === 'touchstart') {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+
+        // Tính % tọa độ
+        const xPercent = (clientX - rect.left) / rect.width;
+        const yPercent = (clientY - rect.top) / rect.height;
+
+        // Giới hạn trong khung
+        if(xPercent < 0 || xPercent > 1 || yPercent < 0 || yPercent > 1) return;
+
+        let data = {
+            type: selectedType,
+            xP: xPercent,
+            yP: yPercent,
+            timestamp: Date.now()
+        };
+
+        if (selectedType === 'excavator') { data.icon = "🚜"; data.amp = 1.2; }
+        else if (selectedType === 'drill') { data.icon = "🔩"; data.amp = 1.8; }
+        else { data.icon = "🚗"; data.amp = 0.5; }
+
+        // Gửi lên Firebase
+        db.ref('simulation/scene').push(data);
+        
+        // Hiệu ứng visual tại chỗ
+        drawMarker(xPercent, yPercent, data.icon);
+        
+        // Rung điện thoại (Haptic feedback) nếu có hỗ trợ
+        if(navigator.vibrate) navigator.vibrate(50);
+    }
+
+    function drawMarker(xp, yp, icon) {
+        const el = document.createElement('div');
+        el.className = 'marker';
+        el.innerText = icon;
+        el.style.left = (xp * 100) + '%';
+        el.style.top = (yp * 100) + '%';
+        mapDiv.appendChild(el);
+    }
+
+    function clearScene() {
+        db.ref('simulation/scene').remove();
+        document.querySelectorAll('.marker').forEach(e => e.remove());
+        if(navigator.vibrate) navigator.vibrate([50, 50, 50]);
+    }
+
+    // Đồng bộ ngược
+    db.ref('simulation/scene').on('value', snap => {
+        if(!snap.val()) document.querySelectorAll('.marker').forEach(e => e.remove());
+    });
+
+</script>
+</body>
+</html>
