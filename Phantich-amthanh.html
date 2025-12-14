@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phân tích Âm thanh & Nhận diện Nguồn - Web Audio API</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #111; color: #eee; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #00f2c3; text-transform: uppercase; letter-spacing: 2px; }
+        
+        /* Container chính */
+        .analyzer-box { background: #222; padding: 20px; border-radius: 12px; border: 1px solid #444; width: 800px; max-width: 100%; box-shadow: 0 0 20px rgba(0, 242, 195, 0.1); }
+        
+        /* Canvas vẽ phổ */
+        canvas { width: 100%; height: 300px; background: #000; border-radius: 4px; border-bottom: 2px solid #00f2c3; }
+        
+        /* Khu vực điều khiển */
+        .controls { margin-top: 20px; display: flex; gap: 15px; justify-content: center; }
+        button { padding: 12px 30px; font-size: 16px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; }
+        #btn-start { background: #00f2c3; color: #004d40; }
+        #btn-start:hover { background: #00ccb5; transform: scale(1.05); }
+        #btn-stop { background: #ff3e3e; color: white; opacity: 0.5; cursor: not-allowed; }
+        
+        /* Khu vực kết quả */
+        .result-panel { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .info-card { background: #333; padding: 15px; border-radius: 8px; text-align: center; }
+        .info-label { color: #aaa; font-size: 0.9rem; margin-bottom: 5px; }
+        .info-value { font-size: 1.5rem; font-weight: bold; color: white; }
+        
+        #source-prediction { color: #e14eca; text-shadow: 0 0 10px rgba(225, 78, 202, 0.5); }
+        
+        /* Thanh ngưỡng */
+        .threshold-bar { width: 100%; height: 4px; background: #444; margin-top: 10px; position: relative; }
+        .threshold-indicator { height: 100%; background: #e14eca; width: 0%; transition: width 0.1s; }
+    </style>
+</head>
+<body>
+
+    <h1><i class="fas fa-wave-square"></i> Spectrum Analyzer AI</h1>
+
+    <div class="analyzer-box">
+        <canvas id="spectrumCanvas"></canvas>
+
+        <div class="result-panel">
+            <div class="info-card">
+                <div class="info-label">Tần số trội (Dominant Freq)</div>
+                <div class="info-value"><span id="freq-val">0</span> Hz</div>
+            </div>
+            <div class="info-card">
+                <div class="info-label">Kết luận Nguồn gây ồn</div>
+                <div class="info-value" id="source-prediction">---</div>
+            </div>
+        </div>
+
+        <div style="margin-top: 15px; text-align: center; font-size: 0.8rem; color: #888;">
+            Cường độ âm thanh (dB relative):
+            <div class="threshold-bar"><div id="db-bar" class="threshold-indicator"></div></div>
+        </div>
+
+        <div class="controls">
+            <button id="btn-start" onclick="startListening()">🎤 BẮT ĐẦU GHI ÂM</button>
+            <button id="btn-stop" onclick="stopListening()">⏹️ DỪNG</button>
+        </div>
+    </div>
+
+<script>
+    // --- CẤU HÌNH ---
+    let audioCtx;
+    let analyser;
+    let microphone;
+    let animationId;
+    let isRunning = false;
+
+    // Canvas
+    const canvas = document.getElementById('spectrumCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Resize canvas resolution
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+
+    // --- 1. KHỞI ĐỘNG AUDIO CONTEXT ---
+    async function startListening() {
+        if (isRunning) return;
+
+        try {
+            // Xin quyền micro
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Tạo Audio Context
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            
+            // Cấu hình FFT (Fast Fourier Transform)
+            analyser.fftSize = 2048; // Độ phân giải tần số (càng cao càng chi tiết nhưng nặng)
+            const bufferLength = analyser.frequencyBinCount; // = fftSize / 2
+            const dataArray = new Uint8Array(bufferLength);
+
+            // Kết nối: Mic -> Analyser
+            microphone = audioCtx.createMediaStreamSource(stream);
+            microphone.connect(analyser);
+
+            // UI Updates
+            isRunning = true;
+            document.getElementById('btn-start').style.opacity = "0.5";
+            document.getElementById('btn-stop').style.opacity = "1";
+            document.getElementById('btn-stop').style.cursor = "pointer";
+
+            // Bắt đầu vòng lặp vẽ
+            draw(analyser, dataArray, bufferLength);
+
+        } catch (err) {
+            alert("Lỗi: Không thể truy cập Microphone! " + err);
+        }
+    }
+
+    // --- 2. DỪNG GHI ÂM ---
+    function stopListening() {
+        if (!isRunning) return;
+        
+        cancelAnimationFrame(animationId);
+        microphone.disconnect();
+        audioCtx.close();
+        
+        isRunning = false;
+        document.getElementById('btn-start').style.opacity = "1";
+        document.getElementById('btn-stop').style.opacity = "0.5";
+        document.getElementById('source-prediction').innerText = "---";
+        document.getElementById('freq-val').innerText = "0";
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // --- 3. VÒNG LẶP XỬ LÝ (QUAN TRỌNG NHẤT) ---
+    function draw(analyser, dataArray, bufferLength) {
+        // Lấy dữ liệu tần số hiện tại
+        analyser.getByteFrequencyData(dataArray);
+
+        // Xóa màn hình cũ
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Vẽ phổ tần số (Visualizer)
+        const barWidth = (canvas.width / bufferLength) * 2.5;
+        let barHeight;
+        let x = 0;
+        let maxVal = 0;
+        let maxIndex = 0;
+        let totalEnergy = 0;
+
+        for(let i = 0; i < bufferLength; i++) {
+            barHeight = dataArray[i];
+            
+            // Tìm đỉnh tần số (Peak Detection)
+            if (barHeight > maxVal) {
+                maxVal = barHeight;
+                maxIndex = i;
+            }
+            totalEnergy += barHeight;
+
+            // Màu sắc dựa trên chiều cao
+            ctx.fillStyle = `rgb(${barHeight + 50}, 50, ${255 - barHeight})`;
+            ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+
+            x += barWidth + 1;
+        }
+
+        // --- 4. THUẬT TOÁN NHẬN DẠNG NGUỒN (HEURISTIC) ---
+        
+        // Tính tần số thực tế (Hz)
+        // Công thức: Frequency = Index * SampleRate / FFT_Size
+        const nyquist = audioCtx.sampleRate / 2;
+        const dominantFreq = (maxIndex * audioCtx.sampleRate) / analyser.fftSize;
+        
+        // Hiển thị Hz
+        document.getElementById('freq-val').innerText = dominantFreq.toFixed(0);
+        
+        // Hiển thị thanh năng lượng
+        const energyPct = Math.min((maxVal / 255) * 100, 100);
+        document.getElementById('db-bar').style.width = energyPct + "%";
+
+        // LOGIC PHÂN LOẠI (Rule-Based Classification)
+        const resultLabel = document.getElementById('source-prediction');
+        
+        if (maxVal < 50) {
+            // Quá nhỏ -> Yên tĩnh
+            resultLabel.innerText = "Yên tĩnh / Nhiễu nền";
+            resultLabel.style.color = "#888";
+        } else {
+            // Có âm thanh rõ -> Phân loại dựa trên Hz
+            if (dominantFreq < 60) {
+                // Tần số cực thấp: Rung động nền
+                resultLabel.innerText = "Rung động nền / Gió";
+                resultLabel.style.color = "#aaa";
+            } else if (dominantFreq >= 60 && dominantFreq <= 150) {
+                // Tần số trầm: Động cơ lớn
+                resultLabel.innerText = "🚜 ĐỘNG CƠ XE TẢI / MÁY NỔ";
+                resultLabel.style.color = "#ff8d00"; // Cam
+            } else if (dominantFreq > 150 && dominantFreq <= 400) {
+                // Tần số trung trầm
+                resultLabel.innerText = "🚗 Xe ô tô / Tiếng nói nam";
+                resultLabel.style.color = "#00f2c3"; // Xanh
+            } else if (dominantFreq > 400 && dominantFreq <= 1000) {
+                // Tần số trung: Tiếng máy cắt, máy khoan (chế độ rung)
+                resultLabel.innerText = "🔩 MÁY KHOAN / CẮT (Rung mạnh)";
+                resultLabel.style.color = "#e14eca"; // Tím
+            } else if (dominantFreq > 1000) {
+                // Tần số cao: Tiếng rít kim loại, còi báo động
+                resultLabel.innerText = "⚠️ TIẾNG RÍT KIM LOẠI / CÒI";
+                resultLabel.style.color = "#ff3e3e"; // Đỏ
+            }
+        }
+
+        animationId = requestAnimationFrame(() => draw(analyser, dataArray, bufferLength));
+    }
+</script>
+
+</body>
+</html>
