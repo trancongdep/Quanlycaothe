@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Đăng nhập Hệ thống SG-OMS</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <script src="auth.js"></script> 
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #1e1e2f; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: #e1e1e6; }
+        .login-box { background: #27293d; width: 400px; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; }
+        h2 { color: #00f2c3; margin-bottom: 30px; letter-spacing: 1px; }
+        
+        input { width: 100%; padding: 12px; margin: 10px 0; background: #1e1e2f; border: 1px solid #444; color: white; border-radius: 5px; box-sizing: border-box; }
+        input:focus { border-color: #00f2c3; outline: none; }
+        
+        button { width: 100%; padding: 12px; background: #00f2c3; color: #1e1e2f; border: none; font-weight: bold; border-radius: 5px; cursor: pointer; margin-top: 20px; font-size: 16px; transition: 0.3s; }
+        button:hover { background: #00d6ac; }
+        
+        .toggle-link { margin-top: 15px; font-size: 0.9rem; color: #aaa; cursor: pointer; text-decoration: underline; }
+        .hidden { display: none; }
+        #error-msg { color: #ff3e3e; margin-top: 10px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="login-box">
+    <h2 id="form-title">ĐĂNG NHẬP HỆ THỐNG</h2>
+    
+    <div id="login-form">
+        <input type="email" id="l-email" placeholder="Email">
+        <input type="password" id="l-pass" placeholder="Mật khẩu">
+        <button onclick="handleLogin()">ĐĂNG NHẬP</button>
+        <div class="toggle-link" onclick="toggleForm()">Chưa có tài khoản? Đăng ký ngay</div>
+        <div class="toggle-link" onclick="resetPassword()" style="color:#e14eca; margin-top:5px">Quên mật khẩu?</div>
+    </div>
+
+    <div id="register-form" class="hidden">
+        <input type="text" id="r-name" placeholder="Họ và Tên đầy đủ">
+        <input type="text" id="r-unit" placeholder="Đơn vị công tác">
+        <input type="email" id="r-email" placeholder="Email">
+        <input type="password" id="r-pass" placeholder="Mật khẩu (min 6 ký tự)">
+        <button onclick="handleRegister()">ĐĂNG KÝ TÀI KHOẢN</button>
+        <div class="toggle-link" onclick="toggleForm()">Đã có tài khoản? Quay lại đăng nhập</div>
+    </div>
+
+    <div id="error-msg"></div>
+</div>
+
+<script>
+    let isLogin = true;
+
+    function toggleForm() {
+        isLogin = !isLogin;
+        if(isLogin) {
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById('form-title').innerText = "ĐĂNG NHẬP HỆ THỐNG";
+        } else {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.remove('hidden');
+            document.getElementById('form-title').innerText = "ĐĂNG KÝ THÀNH VIÊN";
+        }
+        document.getElementById('error-msg').innerText = "";
+    }
+
+    // XỬ LÝ ĐĂNG NHẬP
+    function handleLogin() {
+        const email = document.getElementById('l-email').value;
+        const pass = document.getElementById('l-pass').value;
+        
+        firebase.auth().signInWithEmailAndPassword(email, pass)
+            .then((userCredential) => {
+                // Kiểm tra xem user có được duyệt chưa trong Database
+                dbAuth.ref('users/' + userCredential.user.uid).once('value').then(snap => {
+                    const data = snap.val();
+                    if(data && data.isApproved) {
+                        window.location.href = 'index.html'; // Vào trang chủ
+                    } else {
+                        document.getElementById('error-msg').innerText = "Tài khoản đang chờ Admin duyệt!";
+                        firebase.auth().signOut();
+                    }
+                });
+            })
+            .catch((error) => {
+                document.getElementById('error-msg').innerText = "Lỗi: " + error.message;
+            });
+    }
+
+    // XỬ LÝ ĐĂNG KÝ
+    function handleRegister() {
+        const email = document.getElementById('r-email').value;
+        const pass = document.getElementById('r-pass').value;
+        const name = document.getElementById('r-name').value;
+        const unit = document.getElementById('r-unit').value;
+
+        if(!name || !unit) return alert("Vui lòng nhập đủ thông tin!");
+
+        firebase.auth().createUserWithEmailAndPassword(email, pass)
+            .then((userCredential) => {
+                const user = userCredential.user;
+                // Lưu thông tin bổ sung vào Database
+                dbAuth.ref('users/' + user.uid).set({
+                    email: email,
+                    fullName: name,
+                    unit: unit,
+                    role: 'viewer', // Mặc định là quyền xem
+                    isApproved: false, // Mặc định CHƯA ĐƯỢC DUYỆT
+                    createdAt: Date.now()
+                }).then(() => {
+                    alert("Đăng ký thành công! Vui lòng chờ Admin duyệt tài khoản.");
+                    toggleForm(); // Quay về đăng nhập
+                });
+            })
+            .catch((error) => {
+                document.getElementById('error-msg').innerText = error.message;
+            });
+    }
+
+    // QUÊN MẬT KHẨU
+    function resetPassword() {
+        const email = prompt("Nhập email để nhận link đổi mật khẩu:");
+        if(email) {
+            firebase.auth().sendPasswordResetEmail(email)
+                .then(() => alert("Đã gửi link đổi mật khẩu vào email của bạn!"))
+                .catch(e => alert(e.message));
+        }
+    }
+</script>
+</body>
+</html>
