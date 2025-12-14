@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản trị Người dùng</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <script src="auth.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f4f6f9; }
+        table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background: #0056b3; color: white; }
+        tr:hover { background: #f1f1f1; }
+        
+        .btn { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; color: white; margin-right: 5px; }
+        .btn-approve { background: #28a745; }
+        .btn-block { background: #dc3545; }
+        .btn-admin { background: #17a2b8; }
+        
+        .status-pending { color: orange; font-weight: bold; }
+        .status-active { color: green; font-weight: bold; }
+        .status-blocked { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>👮‍♂️ QUẢN TRỊ NGƯỜI DÙNG & PHÂN QUYỀN</h2>
+    <button onclick="window.location.href='index.html'" style="padding:10px;">⬅️ Về Dashboard</button>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Họ Tên</th>
+                <th>Email</th>
+                <th>Đơn vị</th>
+                <th>Quyền (Role)</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody id="user-table">
+            </tbody>
+    </table>
+
+<script>
+    // 1. Kiểm tra phải Admin mới được vào
+    checkLogin(); // Đảm bảo đã đăng nhập
+    // Chờ 1 chút để load dữ liệu localstorage rồi check quyền
+    setTimeout(requireAdmin, 1000);
+
+    // 2. Tải danh sách users
+    dbAuth.ref('users').on('value', snap => {
+        const users = snap.val();
+        const tbody = document.getElementById('user-table');
+        tbody.innerHTML = "";
+        
+        if(users) {
+            Object.keys(users).forEach(uid => {
+                const u = users[uid];
+                let statusHtml = u.isApproved ? '<span class="status-active">Đang hoạt động</span>' : '<span class="status-pending">Chờ duyệt</span>';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${u.fullName}</td>
+                        <td>${u.email}</td>
+                        <td>${u.unit}</td>
+                        <td><b>${u.role.toUpperCase()}</b></td>
+                        <td>${statusHtml}</td>
+                        <td>
+                            ${!u.isApproved ? `<button class="btn btn-approve" onclick="updateUser('${uid}', {isApproved: true})">✅ Duyệt</button>` : `<button class="btn btn-block" onclick="updateUser('${uid}', {isApproved: false})">🔒 Khóa</button>`}
+                            
+                            ${u.role !== 'admin' ? `<button class="btn btn-admin" onclick="updateUser('${uid}', {role: 'admin'})">⭐ Thăng Admin</button>` : `<button class="btn btn-admin" onclick="updateUser('${uid}', {role: 'operator'})">⬇️ Hạ quyền</button>`}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+    });
+
+    function updateUser(uid, data) {
+        if(confirm("Bạn có chắc chắn muốn thay đổi?")) {
+            dbAuth.ref('users/' + uid).update(data);
+        }
+    }
+</script>
+
+</body>
+</html>
