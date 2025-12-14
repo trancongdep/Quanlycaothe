@@ -1,6 +1,5 @@
-// auth.js - HỆ THỐNG BẢO MẬT TRUNG TÂM
+// auth.js - PHIÊN BẢN V2 (CHỐNG LOOP)
 
-// 1. CONFIG FIREBASE (Dùng chung cho toàn hệ thống)
 const firebaseConfig = {
     apiKey: "AIzaSyBAKgjfwqPcYhUxLo__ISxd7xax3GYZDkk",
     authDomain: "das-2025.firebaseapp.com",
@@ -11,55 +10,72 @@ const firebaseConfig = {
     appId: "1:911247179996:web:ecce7b5227266573807419"
 };
 
-// Kiểm tra xem Firebase đã được khởi tạo chưa để tránh lỗi
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 const auth = firebase.auth();
 const dbAuth = firebase.database();
 
-// 2. HÀM KIỂM TRA ĐĂNG NHẬP (Dùng ở đầu các trang nội bộ)
+// Lấy tên file hiện tại (ví dụ: index.html)
+const currentPage = window.location.pathname.split("/").pop();
+
 function checkLogin() {
     auth.onAuthStateChanged(user => {
-        if (user) {
-            // Đã đăng nhập -> Kiểm tra trạng thái duyệt trong Database
-            dbAuth.ref('users/' + user.uid).once('value').then(snapshot => {
-                const userData = snapshot.val();
-                if (!userData || !userData.isApproved) {
-                    alert("Tài khoản của bạn CHƯA ĐƯỢC DUYỆT hoặc ĐÃ BỊ KHÓA. Vui lòng liên hệ Admin.");
-                    auth.signOut().then(() => {
-                        window.location.href = 'login.html';
-                    });
-                } else {
-                    // Đã duyệt -> Lưu thông tin vào LocalStorage để dùng nhanh
-                    localStorage.setItem('currentUser', JSON.stringify(userData));
-                    console.log("Logged in as: " + userData.email + " (" + userData.role + ")");
-                    
-                    // Hiển thị tên người dùng nếu có element id='user-display-name'
-                    const displayEl = document.getElementById('user-display-name');
-                    if(displayEl) displayEl.innerText = userData.fullName + " (" + userData.role + ")";
-                }
-            });
-        } else {
-            // Chưa đăng nhập -> Đá về trang Login
-            window.location.href = 'login.html';
+        // 1. TRƯỜNG HỢP CHƯA ĐĂNG NHẬP
+        if (!user) {
+            // Nếu đang ở trang login thì thôi, không chuyển nữa (Chống loop)
+            if (currentPage !== 'login.html') {
+                window.location.href = 'login.html';
+            }
+            return;
         }
+
+        // 2. TRƯỜNG HỢP ĐÃ ĐĂNG NHẬP
+        // Nếu đang ở trang login, đá sang trang chủ
+        if (currentPage === 'login.html') {
+            window.location.href = 'index.html';
+            return;
+        }
+
+        // 3. KIỂM TRA QUYỀN TRONG DATABASE
+        dbAuth.ref('users/' + user.uid).once('value').then(snapshot => {
+            const userData = snapshot.val();
+            
+            // Tài khoản chưa duyệt -> Đá về login
+            if (!userData || !userData.isApproved) {
+                alert("Tài khoản chưa được duyệt!");
+                auth.signOut();
+                return;
+            }
+
+            // Lưu cache
+            localStorage.setItem('currentUser', JSON.stringify(userData));
+            
+            // Hiển thị tên (nếu có chỗ để hiển thị)
+            const displayEl = document.getElementById('user-display-name');
+            if(displayEl) displayEl.innerText = userData.fullName + " (" + userData.role + ")";
+        });
     });
 }
 
-// 3. HÀM KIỂM TRA QUYỀN ADMIN (Dùng cho các trang admin)
 function requireAdmin() {
+    // Chỉ check khi đã có thông tin user
     const userJson = localStorage.getItem('currentUser');
     if (userJson) {
         const user = JSON.parse(userJson);
         if (user.role !== 'admin') {
             alert("BẠN KHÔNG CÓ QUYỀN TRUY CẬP TRANG NÀY!");
-            window.location.href = 'index.html'; // Quay về trang chủ
+            // Chuyển về index để an toàn
+            if (currentPage !== 'index.html') {
+                window.location.href = 'index.html';
+            }
         }
+    } else {
+        // Chưa load xong user, thử lại sau 500ms
+        setTimeout(requireAdmin, 500);
     }
 }
 
-// 4. HÀM ĐĂNG XUẤT
 function logout() {
     auth.signOut().then(() => {
         localStorage.removeItem('currentUser');
