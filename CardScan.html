@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -37,7 +36,7 @@
         .btn-check:hover { background: #1557b0; transform: translateY(-1px); }
 
         /* Giao diện Thẻ An Toàn */
-        #result-area { display: none; margin-top: 20px; border-top: 1px solid #eee; pt: 20px; }
+        #result-area { display: none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; }
         
         .safety-card {
             background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
@@ -105,28 +104,43 @@
 </div>
 
 <script>
-    // Danh sách 63 mã tỉnh thành hợp lệ của Bộ Công An
     const validProvinces = ["001", "002", "004", "006", "008", "010", "011", "012", "014", "015", "017", "019", "020", "022", "024", "025", "026", "027", "030", "031", "033", "034", "035", "036", "037", "038", "040", "042", "044", "045", "046", "048", "049", "051", "052", "054", "056", "058", "060", "062", "064", "066", "067", "068", "070", "072", "074", "075", "077", "079", "080", "082", "083", "084", "086", "087", "089", "091", "092", "093", "094", "095", "096"];
 
-    // Dữ liệu giả lập (Sau này kết nối Firebase Project: tavietnam-78ae8)
+    // Mock DB mẫu
     const dbMock = {
-        "001095001234": { name: "NGUYỄN VĂN AN", level: "Bậc 3/5", expiry: "20/12/2026", active: true },
-        "079188005678": { name: "LÊ THỊ BÌNH", level: "Bậc 4/5", expiry: "15/06/2025", active: true },
-        "040099009999": { name: "TRẦN HOÀNG NAM", level: "Bậc 2/5", expiry: "01/01/2024", active: false }
+        "001095001234": { name: "NGUYỄN VĂN AN", level: "Bậc 3/5", expiry: "20/12/2026" },
+        "079302005678": { name: "LÊ THỊ BÌNH", level: "Bậc 4/5", expiry: "15/06/2026" }
     };
 
+    function getYearOfBirth(cccd) {
+        const genderCode = parseInt(cccd.charAt(3));
+        const yearSuffix = cccd.substring(4, 6);
+        let century = 1900;
+        
+        // Theo quy định của Bộ Công an về số CCCD
+        if (genderCode === 0 || genderCode === 1) century = 1900;
+        else if (genderCode === 2 || genderCode === 3) century = 2000;
+        else if (genderCode === 4 || genderCode === 5) century = 2100;
+        else if (genderCode === 6 || genderCode === 7) century = 2200;
+
+        return century + parseInt(yearSuffix);
+    }
+
     function validateCCCD(cccd) {
-        if (cccd.length !== 12 || !/^\d+$/.test(cccd)) {
-            return "CCCD phải đúng 12 chữ số.";
-        }
+        if (cccd.length !== 12 || !/^\d+$/.test(cccd)) return "CCCD phải đúng 12 chữ số.";
+        
         const province = cccd.substring(0, 3);
-        if (!validProvinces.includes(province)) {
-            return "Mã tỉnh (3 số đầu) không tồn tại trên hệ thống quốc gia.";
+        if (!validProvinces.includes(province)) return "Mã tỉnh không hợp lệ.";
+
+        // Kiểm tra tuổi (18 - 80)
+        const birthYear = getYearOfBirth(cccd);
+        const currentYear = new Date().getFullYear();
+        const age = currentYear - birthYear;
+
+        if (age < 18 || age > 80) {
+            return `Độ tuổi lao động không hợp lệ (${age} tuổi). Thẻ an toàn điện chỉ cấp cho người từ 18 - 80 tuổi.`;
         }
-        const genderCentury = parseInt(cccd.charAt(3));
-        if (genderCentury > 9) {
-            return "Mã giới tính/thế kỷ không hợp lệ.";
-        }
+
         return null;
     }
 
@@ -135,44 +149,23 @@
         const error = validateCCCD(input);
 
         if (error) {
-            alert("⚠️ Lỗi: " + error);
+            alert("⚠️ Thông báo: " + error);
             document.getElementById('result-area').style.display = 'none';
             return;
         }
 
         const person = dbMock[input];
         if (person) {
-            renderCard(input, person);
+            document.getElementById('resName').innerText = person.name;
+            document.getElementById('resID').innerText = input;
+            document.getElementById('resLevel').innerText = person.level;
+            document.getElementById('resExpiry').innerText = person.expiry;
+            document.getElementById('result-area').style.display = 'block';
         } else {
-            alert("❌ Không tìm thấy hồ sơ huấn luyện cho số CCCD này.");
+            alert("❌ Không tìm thấy hồ sơ cho số CCCD này.");
             document.getElementById('result-area').style.display = 'none';
         }
     }
-
-    function renderCard(id, data) {
-        document.getElementById('resName').innerText = data.name;
-        document.getElementById('resID').innerText = id;
-        document.getElementById('resLevel').innerText = data.level;
-        document.getElementById('resExpiry').innerText = data.expiry;
-
-        const badge = document.getElementById('statusBadge');
-        // Kiểm tra logic hết hạn (giả lập so sánh ngày hiện tại)
-        const expiryDate = new Date(data.expiry.split('/').reverse().join('-'));
-        const today = new Date();
-
-        if (expiryDate < today) {
-            badge.innerText = "● ĐÃ HẾT HẠN";
-            badge.className = "status-badge status-expired";
-            document.getElementById('resExpiry').style.color = "var(--danger)";
-        } else {
-            badge.innerText = "● ĐANG HIỆU LỰC";
-            badge.className = "status-badge status-active";
-            document.getElementById('resExpiry').style.color = "var(--success)";
-        }
-
-        document.getElementById('result-area').style.display = 'block';
-    }
 </script>
-
 </body>
 </html>
