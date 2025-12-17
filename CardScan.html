@@ -1,145 +1,161 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OCR CCCD - Hệ Thống An Toàn Điện</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <title>Tra Cứu Thẻ An Toàn Điện - Nghị Định 62</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
-        .card { max-width: 500px; width: 100%; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        h2 { color: #1a73e8; text-align: center; margin-bottom: 5px; }
-        .subtitle { text-align: center; font-size: 14px; color: #666; margin-bottom: 20px; }
+        :root {
+            --primary-color: #1a73e8;
+            --success-color: #28a745;
+            --bg-color: #f8f9fa;
+        }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .app-container { max-width: 400px; width: 100%; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
         
-        .upload-area { border: 2px dashed #1a73e8; padding: 30px; border-radius: 15px; text-align: center; cursor: pointer; transition: 0.3s; position: relative; }
-        .upload-area:hover { background: #f1f7ff; }
-        #preview { width: 100%; border-radius: 10px; margin-top: 15px; display: none; }
-        
-        .loading { display: none; margin: 20px 0; text-align: center; color: #1a73e8; font-weight: bold; }
-        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #1a73e8; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 10px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .header { text-align: center; margin-bottom: 25px; }
+        .header h2 { color: var(--primary-color); margin: 0; font-size: 22px; }
+        .header p { color: #666; font-size: 14px; margin-top: 5px; }
 
-        .result-box { display: none; background: #f8f9fa; padding: 15px; border-radius: 12px; border: 1px solid #ddd; margin-top: 20px; }
-        .field { margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        .label { font-size: 11px; color: #888; text-transform: uppercase; }
-        .value { font-size: 16px; color: #333; font-weight: 600; }
+        .search-box { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #444; font-size: 14px; }
+        input { 
+            width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 12px; 
+            font-size: 18px; box-sizing: border-box; outline: none; transition: 0.3s;
+            letter-spacing: 1px;
+        }
+        input:focus { border-color: var(--primary-color); background-color: #fff; }
+
+        .btn-search { 
+            width: 100%; padding: 15px; background-color: var(--primary-color); 
+            color: white; border: none; border-radius: 12px; font-size: 16px; 
+            font-weight: bold; cursor: pointer; transition: 0.3s;
+        }
+        .btn-search:hover { background-color: #1557b0; }
+
+        /* Giao diện thẻ kết quả */
+        #result-card { display: none; margin-top: 25px; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .safety-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f1f7ff 100%);
+            border: 1px solid #d1e3ff; border-radius: 15px; padding: 20px; position: relative;
+            overflow: hidden;
+        }
+        .safety-card::before {
+            content: ""; position: absolute; top: 0; right: 0; width: 80px; height: 80px;
+            background: rgba(26, 115, 232, 0.05); border-radius: 0 0 0 100%;
+        }
+
+        .card-status { 
+            display: inline-block; padding: 6px 12px; border-radius: 50px; 
+            background: #e6f4ea; color: #1e7e34; font-size: 12px; 
+            font-weight: bold; margin-bottom: 15px;
+        }
+
+        .info-row { margin-bottom: 15px; }
+        .info-row .label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+        .info-row .value { font-size: 17px; color: #202124; font-weight: 600; margin-top: 2px; }
         
-        #file-input { display: none; }
-        .btn-main { width: 100%; padding: 15px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-weight: bold; margin-top: 15px; cursor: pointer; }
+        .badge-level {
+            display: inline-block; background: var(--primary-color); color: white;
+            padding: 2px 10px; border-radius: 4px; font-size: 14px;
+        }
+
+        .not-found { color: #d93025; text-align: center; padding: 20px; display: none; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>Trích Xuất Thông Tin CCCD</h2>
-    <p class="subtitle">Chụp ảnh mặt trước CCCD rõ nét để demo</p>
-
-    <div class="upload-area" onclick="document.getElementById('file-input').click()">
-        <p id="upload-text">📸 Nhấn để chụp ảnh hoặc chọn ảnh thẻ</p>
-        <input type="file" id="file-input" accept="image/*" capture="environment">
-        <img id="preview" src="">
+<div class="app-container">
+    <div class="header">
+        <h2>Hệ Thống Tra Cứu Thẻ</h2>
+        <p>An toàn điện điện tử - Nghị định 62/2025</p>
     </div>
 
-    <div id="loading-status" class="loading">
-        <div class="spinner"></div>
-        <p>Đang phân tích dữ liệu hình ảnh... <span id="progress">0%</span></p>
+    <div class="search-box">
+        <label for="cccd-input">Số CCCD nhân viên</label>
+        <input type="tel" id="cccd-input" placeholder="Nhập 12 số CCCD" maxlength="12">
+        <button class="btn-search" onclick="checkSafetyCard()">TRA CỨU HỆ THỐNG</button>
     </div>
 
-    <div id="result-box" class="result-box">
-        <div class="field">
-            <div class="label">Số CCCD / ID No.</div>
-            <div id="res-id" class="value">Đang đọc...</div>
+    <div id="not-found" class="not-found">
+        ⚠️ Không tìm thấy dữ liệu thẻ cho số CCCD này.
+    </div>
+
+    <div id="result-card">
+        <div class="safety-card">
+            <div class="card-status">● ĐANG HOẠT ĐỘNG</div>
+            
+            <div class="info-row">
+                <div class="label">Họ và tên nhân viên</div>
+                <div id="res-name" class="value">-</div>
+            </div>
+
+            <div class="info-row">
+                <div class="label">Số định danh (CCCD)</div>
+                <div id="res-cccd" class="value">-</div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between;">
+                <div class="info-row">
+                    <div class="label">Bậc an toàn</div>
+                    <div class="value"><span class="badge-level" id="res-level">Bậc 3/5</span></div>
+                </div>
+                <div class="info-row" style="text-align: right;">
+                    <div class="label">Hạn kiểm tra lại</div>
+                    <div id="res-expiry" class="value" style="color: #d93025;">20/12/2026</div>
+                </div>
+            </div>
         </div>
-        <div class="field">
-            <div class="label">Họ và tên / Full Name</div>
-            <div id="res-name" class="value">Đang đọc...</div>
-        </div>
-        <div class="field">
-            <div class="label">Ngày sinh / Date of Birth</div>
-            <div id="res-dob" class="value">Đang đọc...</div>
-        </div>
-        <div class="field">
-            <div class="label">Giới tính / Sex</div>
-            <div id="res-sex" class="value">Đang đọc...</div>
-        </div>
-        <button class="btn-main" onclick="location.reload()">Quét thẻ khác</button>
+        <p style="font-size: 11px; color: #999; text-align: center; margin-top: 15px;">
+            Dữ liệu được xác thực bởi Hệ thống quản lý an toàn điện nội bộ
+        </p>
     </div>
 </div>
 
 <script>
-    const fileInput = document.getElementById('file-input');
-    const preview = document.getElementById('preview');
-    const loadingStatus = document.getElementById('loading-status');
-    const resultBox = document.getElementById('result-box');
-    const progressText = document.getElementById('progress');
+    // Dữ liệu mẫu để Demo (Sau này sẽ thay bằng gọi Firebase)
+    const mockData = {
+        "038092001234": { name: "NGUYỄN VĂN AN", level: "Bậc 3/5", expiry: "15/05/2026" },
+        "038092005678": { name: "TRẦN THỊ BÌNH", level: "Bậc 4/5", expiry: "20/11/2026" },
+        "123456789012": { name: "LÊ HOÀNG NAM", level: "Bậc 2/5", expiry: "01/01/2026" }
+    };
 
-    fileInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    function checkSafetyCard() {
+        const input = document.getElementById('cccd-input').value;
+        const resultCard = document.getElementById('result-card');
+        const notFound = document.getElementById('not-found');
 
-        // 1. Hiển thị ảnh xem trước
-        const reader = new FileReader();
-        reader.onload = (f) => {
-            preview.src = f.target.result;
-            preview.style.display = 'block';
-            document.getElementById('upload-text').style.display = 'none';
-        };
-        reader.readAsDataURL(file);
+        // Reset hiển thị
+        resultCard.style.display = 'none';
+        notFound.style.display = 'none';
 
-        // 2. Tiến hành OCR
-        loadingStatus.style.display = 'block';
-        resultBox.style.display = 'none';
+        if (input.length < 9) {
+            alert("Vui lòng nhập số CCCD hợp lệ");
+            return;
+        }
 
-        try {
-            const worker = await Tesseract.createWorker('vie', 1, {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
-                        progressText.innerText = Math.round(m.progress * 100) + '%';
-                    }
-                }
-            });
-
-            const { data: { text } } = await worker.recognize(file);
-            console.log("Toàn bộ văn bản đọc được:", text);
-
-            // 3. Xử lý tách chuỗi dựa trên cấu trúc CCCD Việt Nam
-            // (Sử dụng Regex đơn giản để demo)
-            const idMatch = text.match(/\d{12}/); // Tìm dãy 12 số liên tiếp
-            const lines = text.split('\n');
+        // Giả lập tìm kiếm trong database
+        if (mockData[input]) {
+            const data = mockData[input];
+            document.getElementById('res-name').innerText = data.name;
+            document.getElementById('res-cccd').innerText = input;
+            document.getElementById('res-level').innerText = data.level;
+            document.getElementById('res-expiry').innerText = data.expiry;
             
-            document.getElementById('res-id').innerText = idMatch ? idMatch[0] : "Không tìm thấy số";
-            document.getElementById('res-name').innerText = extractName(text);
-            document.getElementById('res-dob').innerText = extractDOB(text);
-            document.getElementById('res-sex').innerText = text.includes('Nữ') ? 'Nữ' : 'Nam';
+            resultCard.style.display = 'block';
+        } else {
+            notFound.style.display = 'block';
+        }
+    }
 
-            await worker.terminate();
-            
-            loadingStatus.style.display = 'none';
-            resultBox.style.display = 'block';
-        } catch (error) {
-            alert("Lỗi khi xử lý ảnh: " + error);
-            loadingStatus.style.display = 'none';
+    // Cho phép nhấn Enter để tìm kiếm
+    document.getElementById('cccd-input').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            checkSafetyCard();
         }
     });
-
-    // Hàm bổ trợ trích xuất tên (demo đơn giản)
-    function extractName(text) {
-        // Thông thường tên nằm sau chữ "Họ và tên" hoặc "Full name"
-        const lines = text.split('\n');
-        for (let i = 0; i < lines.length; i++) {
-            if (lines[i].toUpperCase().includes('HỌ VÀ TÊN') || lines[i].toUpperCase().includes('FULL NAME')) {
-                return lines[i+1] || "Không xác định";
-            }
-        }
-        return "Vui lòng chụp rõ mặt trước";
-    }
-
-    // Hàm bổ trợ trích xuất ngày sinh
-    function extractDOB(text) {
-        const dobMatch = text.match(/\d{2}\/\d{2}\/\d{4}/);
-        return dobMatch ? dobMatch[0] : "Không xác định";
-    }
 </script>
 
 </body>
