@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -7,112 +6,114 @@
     <title>Hệ thống Thẻ An Toàn Điện Điện Tử - Tavietnam</title>
     <style>
         :root {
-            --primary: #1a73e8;
-            --success: #1e7e34;
-            --danger: #d93025;
-            --card-bg: #ffffff;
+            --primary-blue: #1a73e8;
+            --safety-yellow: #FFD700;
+            --danger-red: #d93025;
+            --text-dark: #202124;
         }
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8eaed; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .app-wrapper { max-width: 480px; width: 100%; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8eaed; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         
         /* Form tìm kiếm */
-        .search-container { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; text-align: center; }
-        .search-container h2 { font-size: 18px; color: var(--primary); margin-bottom: 15px; }
-        input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 18px; text-align: center; box-sizing: border-box; }
-        .btn-check { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+        .search-container { max-width: 450px; width: 100%; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        .search-container h2 { font-size: 18px; color: var(--primary-blue); text-align: center; margin-top: 0; }
+        input { width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 10px; font-size: 18px; text-align: center; box-sizing: border-box; outline: none; }
+        .btn-check { width: 100%; padding: 14px; background: var(--primary-blue); color: white; border: none; border-radius: 10px; font-weight: bold; margin-top: 15px; cursor: pointer; transition: 0.2s; }
+        .btn-check:hover { background: #1557b0; }
 
-        /* Mẫu thẻ theo Nghị định 62 */
-        #safety-card-display { display: none; perspective: 1000px; }
-        .digital-card {
-            background: white; border-radius: 12px; border: 2px solid #333;
-            padding: 15px; position: relative; box-shadow: 0 10px 20px rgba(0,0,0,0.15);
-            background-image: url('https://www.transparenttextures.com/patterns/cubes.png');
-        }
-        .card-header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 15px; }
-        .card-header h3 { margin: 0; font-size: 16px; color: #d93025; text-transform: uppercase; }
-        .card-header p { margin: 2px 0; font-size: 12px; font-weight: bold; }
-
-        .card-body { display: flex; gap: 15px; }
-        .avatar-box { width: 100px; height: 130px; border: 1px solid #333; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999; overflow: hidden; }
-        .avatar-box img { width: 100%; height: 100%; object-fit: cover; }
+        /* Giao diện thẻ 2 mặt */
+        #safety-card-display { display: none; width: 100%; max-width: 450px; }
         
-        .info-box { flex: 1; font-size: 13px; }
-        .info-row { margin-bottom: 6px; line-height: 1.4; }
-        .label { font-weight: normal; font-style: italic; }
-        .value { font-weight: bold; text-transform: uppercase; }
+        .card-side {
+            background-color: var(--safety-yellow);
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            position: relative;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            color: #000;
+        }
 
-        .card-footer { margin-top: 15px; display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px dashed #ccc; padding-top: 10px; }
-        .qr-placeholder { width: 60px; height: 60px; background: #eee; border: 1px solid #ddd; padding: 2px; }
-        .stamp { text-align: center; color: var(--danger); font-weight: bold; font-size: 11px; }
+        /* Mặt trước */
+        .card-front-header { text-align: center; border-bottom: 1.5px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
+        .card-front-header h3 { margin: 0; font-size: 16px; text-transform: uppercase; color: var(--danger-red); }
+        .card-front-header p { margin: 2px 0; font-size: 11px; font-weight: bold; }
 
-        .age-warning { color: var(--danger); font-size: 12px; margin-top: 10px; text-align: center; font-weight: bold; display: none; }
+        .card-content { display: flex; gap: 15px; }
+        .photo-box { width: 100px; height: 130px; border: 1px solid #000; background: #fff; overflow: hidden; }
+        .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .details-box { flex: 1; font-size: 13px; line-height: 1.5; }
+        .details-box b { text-transform: uppercase; }
+
+        /* Mặt sau */
+        .card-back-title { text-align: center; font-weight: bold; font-size: 14px; text-transform: uppercase; margin-bottom: 10px; border-bottom: 1px solid #000; }
+        .back-info-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+        .back-info-table td { padding: 4px 0; border-bottom: 1px dashed rgba(0,0,0,0.2); }
+        
+        .card-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px; }
+        .qr-code { width: 70px; height: 70px; background: white; padding: 3px; border: 1px solid #000; }
+        .sign-area { text-align: center; font-size: 11px; font-weight: bold; }
+
+        .age-warning { color: var(--danger-red); font-size: 13px; text-align: center; font-weight: bold; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
 
-<div class="app-wrapper">
-    <div class="search-container">
-        <h2>Tra cứu Thẻ An toàn điện</h2>
-        <input type="tel" id="cccdInput" placeholder="Nhập 12 số CCCD" maxlength="12">
-        <button class="btn-check" onclick="processCheck()">XÁC THỰC THẺ</button>
-        <div id="ageWarning" class="age-warning"></div>
-    </div>
+<div class="search-container">
+    <h2>Hệ Thống Thẻ An Toàn Điện</h2>
+    <input type="tel" id="cccdInput" placeholder="Nhập 12 số CCCD" maxlength="12">
+    <button class="btn-check" onclick="processCheck()">TRA CỨU HỒ SƠ</button>
+    <div id="ageWarning" class="age-warning"></div>
+</div>
 
-    <div id="safety-card-display">
-        <div class="digital-card">
-            <div class="card-header">
-                <h3>Thẻ An Toàn Điện</h3>
-                <p>Cấp theo Nghị định số 62/2025/NĐ-CP</p>
+<div id="safety-card-display">
+    <div class="card-side">
+        <div class="card-front-header">
+            <h3>THẺ AN TOÀN ĐIỆN</h3>
+            <p>Mẫu số 01 - Nghị định 62/2025/NĐ-CP</p>
+        </div>
+        <div class="card-content">
+            <div class="photo-box">
+                <img id="resPhoto" src="https://via.placeholder.com/100x130?text=PHOTO" alt="Ảnh chân dung">
             </div>
-            
-            <div class="card-body">
-                <div class="avatar-box" id="avatarBox">
-                    <img src="https://via.placeholder.com/100x130?text=PHOTO" alt="Ảnh nhân viên">
-                </div>
-                <div class="info-box">
-                    <div class="info-row">
-                        <span class="label">Họ và tên:</span><br>
-                        <span class="value" id="resName">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">Số CCCD:</span><br>
-                        <span class="value" id="resID">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">Bậc an toàn:</span> 
-                        <span class="value" id="resLevel" style="color:var(--danger)">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">Công việc:</span><br>
-                        <span class="value" id="resJob">Quản lý vận hành</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card-footer">
-                <div class="stamp">
-                    <p style="margin:0">ĐƠN VỊ CẤP THẺ</p>
-                    <p style="margin:2px 0; color:blue">TAVIETNAM DIGITAL</p>
-                    <p style="font-size:9px; color:#555">Ngày cấp: 18/12/2025</p>
-                </div>
-                <div class="qr-placeholder">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=VERIFIED" style="width:100%" id="resQR">
-                </div>
+            <div class="details-box">
+                Họ và tên: <b id="resName">-</b><br>
+                Số CCCD: <span id="resID" style="font-weight:bold">-</span><br>
+                Vị trí: <span id="resJob">Nhân viên kỹ thuật</span><br>
+                Bậc an toàn: <b id="resLevel" style="font-size: 16px; color: var(--danger-red);">4/5</b><br>
+                Đơn vị: <b>Công ty TAVIETNAM</b>
             </div>
         </div>
-        <p style="text-align: center; font-size: 11px; color: #666; margin-top: 15px;">
-            Thẻ điện tử có giá trị pháp lý tương đương thẻ giấy theo NĐ 62.
-        </p>
     </div>
+
+    <div class="card-side">
+        <div class="card-back-title">LỊCH SỬ HUẤN LUYỆN & SÁT HẠCH</div>
+        <table class="back-info-table">
+            <tr><td>Ngày huấn luyện:</td><td align="right">15/12/2025</td></tr>
+            <tr><td>Hình thức:</td><td align="right">Huấn luyện định kỳ</td></tr>
+            <tr><td>Kết quả:</td><td align="right" style="color:blue; font-weight:bold;">ĐẠT</td></tr>
+            <tr><td><b>Ngày hết hạn:</b></td><td align="right"><b id="resExpiry" style="color:var(--danger-red)">20/12/2026</b></td></tr>
+        </table>
+
+        <div class="card-footer">
+            <div class="sign-area">
+                <p style="margin:0">ĐẠI DIỆN ĐƠN VỊ CẤP</p>
+                <p style="margin:20px 0 0 0; color:blue">(Đã ký điện tử)</p>
+            </div>
+            <img class="qr-code" id="resQR" src="" alt="Mã QR xác thực">
+        </div>
+    </div>
+    
+    <p style="text-align: center; font-size: 11px; color: #555;">* Thẻ có giá trị tra cứu trực tuyến 24/7 tại hệ thống tavietnam-78ae8.</p>
 </div>
 
 <script>
     const validProvinces = ["001", "002", "004", "006", "008", "010", "011", "012", "014", "015", "017", "019", "020", "022", "024", "025", "026", "027", "030", "031", "033", "034", "035", "036", "037", "038", "040", "042", "044", "045", "046", "048", "049", "051", "052", "054", "056", "058", "060", "062", "064", "066", "067", "068", "070", "072", "074", "075", "077", "079", "080", "082", "083", "084", "086", "087", "089", "091", "092", "093", "094", "095", "096"];
 
-    // Giả lập cơ sở dữ liệu (Kết nối dự án tavietnam-78ae8)
     const dbMock = {
-        "001095001234": { name: "Nguyễn Văn An", level: "4/5", job: "Kỹ thuật viên Trạm biến áp", img: "https://i.pravatar.cc/100?u=an" },
-        "079302005678": { name: "Trần Thị Bình", level: "3/5", job: "Sửa chữa đường dây", img: "https://i.pravatar.cc/100?u=binh" }
+        "001095001234": { name: "Nguyễn Văn An", level: "4/5", exp: "20/12/2026", img: "https://i.pravatar.cc/100?u=1" },
+        "079302005678": { name: "Lê Thị Bình", level: "3/5", exp: "15/06/2026", img: "https://i.pravatar.cc/100?u=2" }
     };
 
     function processCheck() {
@@ -123,33 +124,31 @@
         warning.style.display = 'none';
         display.style.display = 'none';
 
-        // 1. Validation CCCD
-        if (input.length !== 12) { alert("Vui lòng nhập đủ 12 số CCCD."); return; }
+        if (input.length !== 12) { alert("Nhập đủ 12 số CCCD."); return; }
         if (!validProvinces.includes(input.substring(0,3))) { alert("Mã tỉnh không hợp lệ."); return; }
 
-        // 2. Kiểm tra tuổi (18-80)
+        // Logic tuổi (18-80)
         const genderCode = parseInt(input.charAt(3));
         const birthYear = (genderCode < 2 ? 1900 : 2000) + parseInt(input.substring(4,6));
         const age = 2025 - birthYear;
 
         if (age < 18 || age > 80) {
-            warning.innerText = `⚠️ Cảnh báo: Nhân sự ${age} tuổi (Không đủ điều kiện cấp thẻ theo NĐ 62).`;
+            warning.innerText = `⚠️ Cảnh báo: Nhân sự ${age} tuổi (Không đủ điều kiện cấp thẻ).`;
             warning.style.display = 'block';
             return;
         }
 
-        // 3. Hiển thị thông tin
         const person = dbMock[input];
         if (person) {
             document.getElementById('resName').innerText = person.name;
             document.getElementById('resID').innerText = input;
             document.getElementById('resLevel').innerText = person.level;
-            document.getElementById('resJob').innerText = person.job;
-            document.getElementById('avatarBox').innerHTML = `<img src="${person.img}">`;
-            document.getElementById('resQR').src = `https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=STAFF:${input}`;
+            document.getElementById('resExpiry').innerText = person.exp;
+            document.getElementById('resPhoto').src = person.img;
+            document.getElementById('resQR').src = `https://api.qrserver.com/v1/create-qr-code/?size=70x70&data=STAFFID:${input}`;
             display.style.display = 'block';
         } else {
-            alert("❌ Không tìm thấy dữ liệu thẻ an toàn điện cho CCCD này.");
+            alert("❌ Hồ sơ không tồn tại trên hệ thống.");
         }
     }
 </script>
