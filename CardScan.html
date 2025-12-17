@@ -3,125 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Demo Tra Cứu Thẻ An Toàn Điện</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <title>OCR CCCD - Hệ Thống An Toàn Điện</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { max-width: 450px; width: 100%; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        h2 { color: #1a73e8; text-align: center; margin-bottom: 10px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
+        .card { max-width: 500px; width: 100%; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        h2 { color: #1a73e8; text-align: center; margin-bottom: 5px; }
+        .subtitle { text-align: center; font-size: 14px; color: #666; margin-bottom: 20px; }
         
-        /* Khu vực quét */
-        #reader { width: 100%; border-radius: 15px; overflow: hidden; background: #000; margin-bottom: 15px; }
-        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        .upload-area { border: 2px dashed #1a73e8; padding: 30px; border-radius: 15px; text-align: center; cursor: pointer; transition: 0.3s; position: relative; }
+        .upload-area:hover { background: #f1f7ff; }
+        #preview { width: 100%; border-radius: 10px; margin-top: 15px; display: none; }
         
-        /* Nút bấm */
-        button { flex: 1; padding: 12px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.3s; font-size: 15px; }
-        .btn-scan { background-color: #1a73e8; color: white; }
-        .btn-stop { background-color: #ea4335; color: white; display: none; }
-        .btn-lookup { background-color: #34a853; color: white; width: 100%; margin-top: 10px; }
-        
-        input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 16px; box-sizing: border-box; outline: none; }
-        input:focus { border-color: #1a73e8; }
+        .loading { display: none; margin: 20px 0; text-align: center; color: #1a73e8; font-weight: bold; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #1a73e8; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 10px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Card kết quả */
-        #result-card { display: none; margin-top: 20px; padding: 20px; border-radius: 15px; background: #f8f9fa; border: 1px solid #e0e0e0; }
-        .status-badge { display: inline-block; padding: 5px 12px; border-radius: 20px; background: #ceead6; color: #0d652d; font-size: 13px; font-weight: bold; margin-bottom: 10px; }
-        .info-item { margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        .label { font-size: 12px; color: #70757a; text-transform: uppercase; }
-        .value { font-size: 17px; color: #202124; font-weight: 500; }
+        .result-box { display: none; background: #f8f9fa; padding: 15px; border-radius: 12px; border: 1px solid #ddd; margin-top: 20px; }
+        .field { margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .label { font-size: 11px; color: #888; text-transform: uppercase; }
+        .value { font-size: 16px; color: #333; font-weight: 600; }
+        
+        #file-input { display: none; }
+        .btn-main { width: 100%; padding: 15px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-weight: bold; margin-top: 15px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>Hệ Thống An Toàn</h2>
-    <p style="text-align: center; font-size: 14px; color: #5f6368;">Quét mã QR trên CCCD để kiểm tra thẻ an toàn điện</p>
+<div class="card">
+    <h2>Trích Xuất Thông Tin CCCD</h2>
+    <p class="subtitle">Chụp ảnh mặt trước CCCD rõ nét để demo</p>
 
-    <div id="reader"></div>
-
-    <div class="controls">
-        <button id="start-btn" class="btn-scan" onclick="startScanning()">Bắt đầu Quét QR</button>
-        <button id="stop-btn" class="btn-stop" onclick="stopScanning()">Dừng Quét</button>
+    <div class="upload-area" onclick="document.getElementById('file-input').click()">
+        <p id="upload-text">📸 Nhấn để chụp ảnh hoặc chọn ảnh thẻ</p>
+        <input type="file" id="file-input" accept="image/*" capture="environment">
+        <img id="preview" src="">
     </div>
 
-    <div class="input-group">
-        <input type="text" id="cccd-input" placeholder="Nhập số CCCD thủ công">
-        <button class="btn-lookup" onclick="simulateLookup()">Tra cứu</button>
+    <div id="loading-status" class="loading">
+        <div class="spinner"></div>
+        <p>Đang phân tích dữ liệu hình ảnh... <span id="progress">0%</span></p>
     </div>
 
-    <div id="result-card">
-        <div class="status-badge">✓ ĐÃ CẤP THẺ ĐIỆN TỬ</div>
-        
-        <div class="info-item">
-            <div class="label">Họ và tên</div>
-            <div id="res-name" class="value">-</div>
+    <div id="result-box" class="result-box">
+        <div class="field">
+            <div class="label">Số CCCD / ID No.</div>
+            <div id="res-id" class="value">Đang đọc...</div>
         </div>
-
-        <div class="info-item">
-            <div class="label">Số định danh (CCCD)</div>
-            <div id="res-cccd" class="value">-</div>
+        <div class="field">
+            <div class="label">Họ và tên / Full Name</div>
+            <div id="res-name" class="value">Đang đọc...</div>
         </div>
-
-        <div class="info-item">
-            <div class="label">Bậc an toàn điện</div>
-            <div class="value" style="color: #1a73e8;">Bậc 3 / 5</div>
+        <div class="field">
+            <div class="label">Ngày sinh / Date of Birth</div>
+            <div id="res-dob" class="value">Đang đọc...</div>
         </div>
-
-        <div class="info-item">
-            <div class="label">Ngày hết hạn</div>
-            <div class="value">20/12/2026</div>
+        <div class="field">
+            <div class="label">Giới tính / Sex</div>
+            <div id="res-sex" class="value">Đang đọc...</div>
         </div>
+        <button class="btn-main" onclick="location.reload()">Quét thẻ khác</button>
     </div>
 </div>
 
 <script>
-    const html5QrCode = new Html5Qrcode("reader");
-    const startBtn = document.getElementById('start-btn');
-    const stopBtn = document.getElementById('stop-btn');
+    const fileInput = document.getElementById('file-input');
+    const preview = document.getElementById('preview');
+    const loadingStatus = document.getElementById('loading-status');
+    const resultBox = document.getElementById('result-box');
+    const progressText = document.getElementById('progress');
 
-    function startScanning() {
-        startBtn.style.display = 'none';
-        stopBtn.style.display = 'inline-block';
-        document.getElementById('result-card').style.display = 'none';
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+        // 1. Hiển thị ảnh xem trước
+        const reader = new FileReader();
+        reader.onload = (f) => {
+            preview.src = f.target.result;
+            preview.style.display = 'block';
+            document.getElementById('upload-text').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
 
-        // Ưu tiên camera sau (facingMode: environment)
-        html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
-            // Xử lý chuỗi dữ liệu CCCD của Bộ Công An
-            const parts = decodedText.split('|');
-            const cccdNumber = parts[0];
-            const fullName = parts[2] || "Nhân viên Demo";
+        // 2. Tiến hành OCR
+        loadingStatus.style.display = 'block';
+        resultBox.style.display = 'none';
 
-            showResult(cccdNumber, fullName);
-            stopScanning(); // Dừng camera sau khi quét thành công
-        }).catch(err => {
-            alert("Lỗi camera: " + err);
-            stopScanning();
-        });
-    }
+        try {
+            const worker = await Tesseract.createWorker('vie', 1, {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        progressText.innerText = Math.round(m.progress * 100) + '%';
+                    }
+                }
+            });
 
-    function stopScanning() {
-        html5QrCode.stop().then(() => {
-            startBtn.style.display = 'inline-block';
-            stopBtn.style.display = 'none';
-        }).catch(err => console.log(err));
-    }
+            const { data: { text } } = await worker.recognize(file);
+            console.log("Toàn bộ văn bản đọc được:", text);
 
-    function showResult(cccd, name) {
-        document.getElementById('cccd-input').value = cccd;
-        document.getElementById('res-cccd').innerText = cccd;
-        document.getElementById('res-name').innerText = name;
-        document.getElementById('result-card').style.display = 'block';
-    }
+            // 3. Xử lý tách chuỗi dựa trên cấu trúc CCCD Việt Nam
+            // (Sử dụng Regex đơn giản để demo)
+            const idMatch = text.match(/\d{12}/); // Tìm dãy 12 số liên tiếp
+            const lines = text.split('\n');
+            
+            document.getElementById('res-id').innerText = idMatch ? idMatch[0] : "Không tìm thấy số";
+            document.getElementById('res-name').innerText = extractName(text);
+            document.getElementById('res-dob').innerText = extractDOB(text);
+            document.getElementById('res-sex').innerText = text.includes('Nữ') ? 'Nữ' : 'Nam';
 
-    function simulateLookup() {
-        const val = document.getElementById('cccd-input').value;
-        if (val.length < 9) {
-            alert("Vui lòng nhập số CCCD");
-            return;
+            await worker.terminate();
+            
+            loadingStatus.style.display = 'none';
+            resultBox.style.display = 'block';
+        } catch (error) {
+            alert("Lỗi khi xử lý ảnh: " + error);
+            loadingStatus.style.display = 'none';
         }
-        showResult(val, "Dữ liệu mẫu từ hệ thống");
+    });
+
+    // Hàm bổ trợ trích xuất tên (demo đơn giản)
+    function extractName(text) {
+        // Thông thường tên nằm sau chữ "Họ và tên" hoặc "Full name"
+        const lines = text.split('\n');
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].toUpperCase().includes('HỌ VÀ TÊN') || lines[i].toUpperCase().includes('FULL NAME')) {
+                return lines[i+1] || "Không xác định";
+            }
+        }
+        return "Vui lòng chụp rõ mặt trước";
+    }
+
+    // Hàm bổ trợ trích xuất ngày sinh
+    function extractDOB(text) {
+        const dobMatch = text.match(/\d{2}\/\d{2}\/\d{4}/);
+        return dobMatch ? dobMatch[0] : "Không xác định";
     }
 </script>
 
