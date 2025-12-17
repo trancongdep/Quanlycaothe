@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo Thông Báo An Toàn Điện</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* Giao diện nhập liệu */
+        .input-panel {
+            background: white;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto 20px auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .input-group input, .input-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        button {
+            background-color: #0066cc;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #004d99;
+        }
+
+        /* Khu vực hiển thị văn bản (Giả lập trang A4) */
+        #document-preview {
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 20mm 15mm; /* Lề chuẩn văn bản */
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            box-sizing: border-box;
+            position: relative;
+            font-size: 13pt; /* Cỡ chữ thông dụng 13-14 */
+            line-height: 1.3;
+            text-align: justify;
+        }
+
+        /* Định dạng Header Quốc hiệu tiêu ngữ */
+        .header-table {
+            width: 100%;
+            margin-bottom: 20px;
+            border: none;
+        }
+        .header-table td {
+            vertical-align: top;
+            text-align: center;
+            padding: 0;
+        }
+        .company-name {
+            font-weight: bold;
+            font-size: 11pt;
+        }
+        .motto {
+            font-weight: bold;
+            font-size: 11pt;
+        }
+        .sub-motto {
+            font-weight: bold;
+            font-size: 12pt;
+            border-bottom: 1px solid black; /* Gạch chân Độc lập tự do */
+            display: inline-block;
+            padding-bottom: 2px;
+        }
+        
+        .title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 14pt;
+            margin-top: 15px;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            text-align: center;
+            font-weight: bold;
+            font-size: 13pt;
+            margin-bottom: 15px;
+            font-style: italic; /* Có thể để thường hoặc nghiêng tùy mẫu */
+        }
+
+        /* Định dạng bảng dữ liệu trong văn bản */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 12pt;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid black;
+            padding: 5px;
+            text-align: center;
+        }
+        
+        /* Các phần mục */
+        .section-title {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        /* Phần chữ ký */
+        .footer-table {
+            width: 100%;
+            margin-top: 30px;
+            border: none;
+        }
+        .footer-table td {
+            vertical-align: top;
+            text-align: center;
+        }
+        .recipients {
+            text-align: left;
+            font-size: 11pt;
+            font-style: italic;
+        }
+
+        /* Helper để ẩn khi xem trên web nếu cần, nhưng html2pdf sẽ chụp cái này */
+        .highlight {
+            color: blue; /* Để người dùng dễ check trước khi in, khi in html2pdf có thể set grayscale hoặc giữ màu */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="input-panel">
+        <h2 style="margin-top:0">Nhập thông tin Thông báo</h2>
+        <div class="input-group">
+            <label>Họ tên chủ hộ/Chủ công trình:</label>
+            <input type="text" id="inpName" placeholder="Ví dụ: Bà Nguyễn Thị Minh Thu; Bà Hứa Nguyễn Minh Thảo" value="Bà Nguyễn Thị Minh Thu; Bà Hứa Nguyễn Minh Thảo">
+        </div>
+        <div class="input-group">
+            <label>Địa chỉ:</label>
+            <input type="text" id="inpAddress" placeholder="Ví dụ: H153/2, Đường Nguyễn Thị Đặng, Phường Tân Thới Hiệp, TP.HCM" value="H153/2, Đường Nguyễn Thị Đặng, Phường Tân Thới Hiệp, Thành Phố Hồ Chí Minh">
+        </div>
+        <div class="input-group">
+            <label>Thông tin đường dây & Khoảng trụ (Phần IV):</label>
+            <textarea id="inpLineInfo" rows="3" placeholder="Ví dụ: 02 đường dây dẫn điện trên không 110kV Hóc Môn – Thạnh Lộc; Hiệp Bình Phước – Thạnh Lộc, khoảng trụ 02 - 03">02 đường dây dẫn điện trên không 110kV Hóc Môn – Thạnh Lộc; Hiệp Bình Phước – Thạnh Lộc, khoảng trụ 02 - 03</textarea>
+        </div>
+        <div class="input-group">
+            <label>Số thông báo (nếu có):</label>
+            <input type="text" id="inpNumber" placeholder="............." value="">
+        </div>
+        <div style="text-align: right;">
+            <button onclick="updatePreview()">Cập nhật Xem trước</button>
+            <button onclick="downloadPDF()" style="background-color: #28a745;">Tải về PDF (Trình ký)</button>
+        </div>
+    </div>
+
+    <div id="document-preview">
+        
+        <table class="header-table">
+            <tr>
+                <td style="width: 45%;">
+                    <div class="company-name">TỔNG CÔNG TY ĐIỆN LỰC TP HỒ CHÍ MINH</div>
+                    <div class="company-name">CÔNG TY LƯỚI ĐIỆN CAO THẾ</div>
+                    <div class="company-name">THÀNH PHỐ HỒ CHÍ MINH</div>
+                    <hr style="width: 30%; border-top: 1px solid black;">
+                    <div>Số: <span id="outNumber">..............</span>/LĐCT-ĐQLĐD</div>
+                </td>
+                <td style="width: 55%;">
+                    <div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+                    <div class="sub-motto">Độc lập - Tự do - Hạnh phúc</div>
+                    <br><br>
+                    <div style="font-style: italic;">Tân Sơn Hòa, ngày ...... tháng ...... năm 2025</div>
+                </td>
+            </tr>
+        </table>
+
+        <div class="title">THÔNG BÁO</div>
+        <div class="subtitle">Về việc xây dựng sửa chữa nhà nằm trong và gần hành lang bảo vệ an toàn<br>công trình Điện lực</div>
+
+        <div style="margin-bottom: 10px;">
+            <b>Kính gửi: <span id="outName1" class="highlight">Bà Nguyễn Thị Minh Thu; Bà Hứa Nguyễn Minh Thảo</span></b>
+        </div>
+        <div style="margin-bottom: 10px; margin-left: 20px;">
+            Địa chỉ: <span id="outAddress1" class="highlight">H153/2, Đường Nguyễn Thị Đặng, Phường Tân Thới Hiệp, Thành Phố Hồ Chí Minh.</span>
+        </div>
+
+        <div style="margin-bottom: 5px;">
+            Căn cứ Luật Điện lực số 61/2024/QH15 của Quốc hội nước Cộng Hòa Xã Hội Chủ Nghĩa Việt Nam;<br>
+            Căn cứ Nghị định số 62/2025/NĐ-CP ngày 04/03/2025 của Chính Phủ về việc Quy định chi tiết thi hành Luật điện lực về bảo vệ công trình điện lực và an toàn trong lĩnh vực điện lực;<br>
+            Căn cứ Giấy ủy quyền số 3178/GUQ-LĐCT ngày 01/11/2025 của Công ty Lưới điện Cao thế TP. HCM;<br>
+            Căn cứ Giấy ủy quyền số 1964/DQLDD ngày 17/11/2025 của Đội Quản lý Đường dây (QLĐD) thuộc Công ty LĐCT;
+        </div>
+
+        <div class="section-title">I. Hành lang bảo vệ an toàn đường dây dẫn điện trên không (theo Điều 9 Nghị định 62/2025/NĐ-CP) được quy định như sau:</div>
+        <div>1. Hành lang bảo vệ an toàn đường dây dẫn điện trên không là vùng xung quanh dây dẫn điện trên không được giới hạn bởi chiều dài, chiều rộng, chiều cao như sau:</div>
+        <div style="margin-left: 20px;">
+            a) Chiều dài hành lang được tính từ vị trí đường dây ra khỏi ranh giới bảo vệ của trạm này đến vị trí đường dây đi vào ranh giới bảo vệ của trạm kế tiếp;<br>
+            b) Chiều rộng hành lang được giới hạn bởi hai mặt thẳng đứng về hai phía của đường dây, song song với đường dây, có khoảng cách từ dây ngoài cùng về mỗi phía khi dây ở trạng thái tĩnh theo quy định trong bảng sau:
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th rowspan="2">Điện áp</th>
+                    <th colspan="2">Đến 22 kV</th>
+                    <th>35 kV</th>
+                    <th>110 kV</th>
+                    <th>220 kV</th>
+                    <th>500 kV</th>
+                </tr>
+                <tr>
+                    <th>Dây bọc</th>
+                    <th>Dây trần</th>
+                    <th>Dây bọc</th>
+                    <th>Dây trần</th>
+                    <th>Dây trần</th>
+                    <th>Dây trần</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Khoảng cách</td>
+                    <td>1,0 m</td>
+                    <td>2,0 m</td>
+                    <td>1,5 m</td>
+                    <td>4,0 m</td> <td>6,0 m</td>
+                    <td>7,0 m</td>
+                </tr>
+            </tbody>
+        </table>
+        <div style="margin-left: 20px;">
+            c) Chiều cao hành lang được tính từ đáy móng cột đến điểm cao nhất của công trình cộng thêm khoảng cách an toàn theo chiều thẳng đứng quy định trong bảng sau:
+        </div>
+
+        <table class="data-table">
+            <tr>
+                <th>Điện áp</th>
+                <th>Đến 35 kV</th>
+                <th>110 kV</th>
+                <th>220 kV</th>
+                <th>500 kV</th>
+            </tr>
+            <tr>
+                <td>Khoảng cách</td>
+                <td>2,0 m</td>
+                <td>3,0 m</td>
+                <td>4,0 m</td>
+                <td>6,0 m</td>
+            </tr>
+        </table>
+
+        <div>2. Hành lang bảo vệ an toàn các loại cáp điện đi trên mặt đất hoặc treo trên không được giới hạn về các phía là 0,5 m tính từ mặt ngoài của sợi cáp ngoài cùng.</div>
+
+        <div class="section-title">II. Điều kiện để nhà ở, công trình xây dựng tồn tại trong và gần hành lang bảo vệ an toàn đường dây dẫn điện trên không (Điều 16 nghị định 62/2025/NĐ-CP) được quy định như sau:</div>
+        <div>1. Nhà ở, công trình xây dựng được tồn tại trong hành lang bảo vệ an toàn đường dây dẫn điện trên không có điện áp đến 220 kV nếu đáp ứng đủ các điều kiện sau:</div>
+        <div style="margin-left: 20px;">
+            a) Mái lợp và tường bao phải làm bằng vật liệu không cháy và đảm bảo kết cấu an toàn xây dựng.<br>
+            b) Không gây cản trở đường ra vào để kiểm tra, bảo dưỡng, sửa chữa và thay thế các bộ phận công trình lưới điện cao áp.<br>
+            c) Khoảng cách từ bất kỳ bộ phận nào của nhà ở, công trình đến dây dẫn điện gần nhất khi dây ở trạng thái võng cực đại không nhỏ hơn quy định trong bảng sau:
+        </div>
+
+        <table class="data-table">
+            <tr>
+                <th>Điện áp</th>
+                <th>Đến 35 kV</th>
+                <th>110 kV</th>
+                <th>220 kV</th>
+            </tr>
+            <tr>
+                <td>Khoảng cách</td>
+                <td>3,0 m</td>
+                <td>4,0 m</td>
+                <td>6,0 m</td>
+            </tr>
+        </table>
+
+        <div style="margin-left: 20px;">
+            d) Đối với đường dây dẫn điện trên không có điện áp 220 kV, ngoài đáp ứng các điều kiện a, b, c khoản này còn đáp ứng các yêu cầu sau: Cường độ điện trường nhỏ hơn 5 kV/m tại điểm bất kỳ ở ngoài nhà cách mặt đất một (01) mét và nhỏ hơn hoặc bằng 1 kV/m tại điểm bất kỳ ở bên trong nhà cách mặt đất một (01) mét. Các kết cấu của công trình phải được nối đất phù hợp với tiêu chuẩn, quy chuẩn kỹ thuật tương ứng.
+        </div>
+
+        <div class="section-title">III. Hành lang bảo vệ an toàn đường cáp điện ngầm:</div>
+        <div>
+            1. Chiều dài hành lang được tính từ vị trí cáp ra khỏi ranh giới phạm vi bảo vệ của trạm này đến vị trí vào ranh giới phạm vi bảo vệ của trạm kế tiếp.<br>
+            2. Chiều rộng hành lang được giới hạn bởi:<br>
+            a) Mặt ngoài của mương cáp đối với cáp đặt trong mương cáp;<br>
+            b) Hai mặt thẳng đứng cách mặt ngoài của vỏ cáp hoặc sợi cáp ngoài cùng về hai phía của đường cáp điện ngầm đối với cáp đặt trực tiếp trong đất, trong nước được quy định trong bảng sau:
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th rowspan="2">Loại cáp điện</th>
+                    <th colspan="2">Đặt trực tiếp trong đất</th>
+                    <th colspan="2">Đặt trong nước</th>
+                </tr>
+                <tr>
+                    <th>Đất ổn định</th>
+                    <th>Đất không ổn định</th>
+                    <th>Nơi không có tàu thuyền</th>
+                    <th>Nơi có tàu thuyền</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Khoảng cách</td>
+                    <td>1,0 m</td>
+                    <td>1,5 m</td>
+                    <td>20,0 m</td>
+                    <td>100,0 m</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div>
+            3. Chiều cao được tính từ mặt đất hoặc mặt nước đến:<br>
+            a) Mặt ngoài của đáy móng mương cáp đối với cáp đặt trong mương cáp;<br>
+            b) Độ sâu thấp hơn điểm thấp nhất của vỏ cáp là 1,5 m đối với cáp đặt trực tiếp trong đất hoặc trong nước.
+        </div>
+
+        <div class="section-title">IV. Công ty Lưới điện Cao thế TP Hồ Chí Minh (Công ty LĐCT) thông báo:</div>
+        <div style="text-indent: 20px; margin-top: 5px; text-align: justify;">
+            Nhà số <b id="outAddress2" class="highlight">H153/2, đường Nguyễn Thị Căn, phường Tân Thới Hiệp TP. HCM</b> của Quý Ông (Bà) hiện đang nằm trong hành lang bảo vệ an toàn công trình điện lực <b id="outLineInfo" class="highlight">02 đường dây dẫn điện trên không 110kV Hóc Môn – Thạnh Lộc; Hiệp Bình Phước – Thạnh Lộc, khoảng trụ 02 - 03</b>.
+        </div>
+        <div style="text-indent: 20px; margin-top: 5px;">
+            Để đề phòng tai nạn điện và sự cố lưới điện, bảo vệ an toàn tính mạng và tài sản của nhân dân, bảo đảm cung cấp điện an toàn liên tục, Công ty LĐCT đề nghị Ông (Bà) thông báo cho tất cả những người đến sinh sống và làm việc tại địa chỉ trên biết và không được thực hiện các yêu cầu sau:
+        </div>
+        <ul style="list-style-type: none; padding-left: 20px; margin-top: 5px;">
+            <li>- Không sử dụng công trình điện lực vào những mục đích khác khi chưa được sự thỏa thuận của đơn vị quản lý công trình điện lực.</li>
+            <li>- Không lắp đặt ăng ten thu phát sóng, dây phơi, giàn giáo, nhà lồng, nhà lưới, biển, hộp đèn quảng cáo và các vật dụng khác tại các vị trí mà khi bị đổ, rơi, văng, rung lắc gây hư hỏng, sự cố công trình điện lực.</li>
+            <li>- Tổ chức, cá nhân không đào đất, chất tải hoặc hoạt động gây sụt lún hoặc có nguy cơ gây sạt lở, lún sụt công trình lưới điện, trạm điện; không đốt nương rẫy, rác thải, vật liệu, sử dụng các phương tiện thi công gây chấn động hoặc có khả năng làm hư hỏng, sự cố công trình điện lực; không bắn, quăng, ném bất kỳ vật gì lên đường dây điện, trạm điện và các công trình điện lực khác.</li>
+            <li>- Không thực hiện nổ mìn, mở mỏ; xếp, chứa các chất dễ cháy nổ, các chất hóa học có khả năng gây ăn mòn hoặc có khả năng làm cháy, gây hư hỏng các bộ phận của công trình điện lực.</li>
+            <li>- Phương tiện bay được cấp phép phải bảo đảm khoảng cách an toàn đối với công trình điện lực, không được phép bay vào phạm vi 500 m tính từ mép ngoài công trình lưới điện cao áp, siêu cao áp trên không hoặc 100 m tính từ mép ngoài công trình lưới điện trên không trung áp ra các phía xung quanh, trừ trường hợp phương tiện bay làm nhiệm vụ quản lý, bảo dưỡng, sửa chữa đường dây điện được phép theo quy định.</li>
+        </ul>
+
+        <div style="font-style: italic; font-weight: bold; margin-top: 10px;">
+            Lưu ý: Khi có thay đổi chủ sở hữu đề nghị thông báo cho chủ sở hữu sau biết để thực hiện nhằm đảm bảo an toàn.
+        </div>
+        <div style="margin-top: 5px;">
+            Đề nghị Chủ hộ tuân thủ và thông báo mọi người có liên quan tuân thủ các điều lưu ý nêu trên để tránh các tai nạn điện đáng tiếc có thể xảy ra.
+        </div>
+        <div style="margin-top: 5px;">
+            Mọi sự vi phạm hành lang bảo vệ công trình điện lực theo Luật Điện lực số 61/2024/QH15 của Quốc hội nước Cộng Hòa Xã Hội Chủ Nghĩa Việt Nam, Nghị định số 62/2025/NĐ-CP ngày 04/03/2025 của Chính Phủ về việc Quy định chi tiết thi hành Luật điện lực về bảo vệ công trình điện lực và an toàn trong lĩnh vực điện lực người vi phạm hoàn toàn chịu trách nhiệm.
+        </div>
+
+        <div style="margin-top: 15px; border-top: 1px solid #ccc; padding-top: 10px;">
+            <b>Mọi thông tin, thắc mắc xin vui lòng liên hệ:</b><br>
+            CÔNG TY LƯỚI ĐIỆN CAO THẾ TP. HỒ CHÍ MINH<br>
+            113, đường Phổ Quang, Phường Tân Sơn Hòa, TP. HCM<br>
+            Số điện thoại khẩn cấp thông báo sự cố, tai nạn điện: <b>1900545454</b>.<br>
+            Số điện thoại liên hệ trực tiếp: 0963.292.882 (Anh Trần Công Đẹp - Đội Phó Đội Quản lý đường dây hoặc 0903.331.272 (Anh Nguyễn Tấn Thanh - Tổ Trưởng tổ đường dây)./.
+        </div>
+
+        <table class="footer-table">
+            <tr>
+                <td style="width: 50%;">
+                    <div class="recipients">
+                        <b>Nơi nhận:</b><br>
+                        - Như trên;<br>
+                        - Ban GĐ Cty (để báo cáo);<br>
+                        - Đội QLĐD (để theo dõi);<br>
+                        - Lưu: VT, ĐQLĐD.
+                    </div>
+                </td>
+                <td style="width: 50%;">
+                    <b>TUQ. GIÁM ĐỐC</b><br>
+                    <b>KT. ĐỘI PHÓ PHỤ TRÁCH</b><br>
+                    <b>ĐỘI PHÓ</b>
+                    <br><br><br><br><br>
+                    <b>Trần Công Đẹp</b>
+                </td>
+            </tr>
+        </table>
+
+    </div>
+
+    <script>
+        function updatePreview() {
+            // Lấy giá trị từ input
+            const name = document.getElementById('inpName').value;
+            const address = document.getElementById('inpAddress').value;
+            const lineInfo = document.getElementById('inpLineInfo').value;
+            const number = document.getElementById('inpNumber').value;
+
+            // Gán vào bản xem trước
+            document.getElementById('outName1').innerText = name;
+            document.getElementById('outAddress1').innerText = address;
+            document.getElementById('outAddress2').innerText = address;
+            document.getElementById('outLineInfo').innerText = lineInfo;
+            
+            if(number) {
+                document.getElementById('outNumber').innerText = number;
+            } else {
+                document.getElementById('outNumber').innerText = "..............";
+            }
+        }
+
+        function downloadPDF() {
+            // Cập nhật dữ liệu mới nhất trước khi in
+            updatePreview();
+
+            // Cấu hình in PDF
+            const element = document.getElementById('document-preview');
+            
+            // Xóa highlight màu xanh để bản in trông chuyên nghiệp (tạm thời đổi màu class highlight)
+            const highlights = document.getElementsByClassName('highlight');
+            const originalColors = [];
+            for(let i=0; i<highlights.length; i++){
+                originalColors.push(highlights[i].style.color);
+                highlights[i].style.color = 'black'; // Đổi về đen
+            }
+
+            const opt = {
+                margin:       10, // lề trang in
+                filename:     'Thong_bao_an_toan_dien_' + document.getElementById('inpName').value.split(';')[0] + '.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true }, // scale 2 để nét hơn
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Tạo PDF
+            html2pdf().set(opt).from(element).save().then(() => {
+                // Khôi phục màu highlight sau khi in xong (nếu cần xem lại trên web)
+                for(let i=0; i<highlights.length; i++){
+                    highlights[i].style.color = ''; // Reset
+                }
+            });
+        }
+    </script>
+</body>
+</html>
