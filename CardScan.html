@@ -6,92 +6,125 @@
     <title>Demo Tra Cứu Thẻ An Toàn Điện</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .container { max-width: 500px; width: 100%; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h2 { color: #2c3e50; text-align: center; margin-bottom: 20px; }
-        #reader { width: 100%; border-radius: 10px; overflow: hidden; border: 2px dashed #3498db; }
-        .input-group { margin-top: 20px; display: flex; flex-direction: column; }
-        input { padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 10px; }
-        button { padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; transition: 0.3s; }
-        button:hover { background-color: #2980b9; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { max-width: 450px; width: 100%; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h2 { color: #1a73e8; text-align: center; margin-bottom: 10px; }
         
-        /* Hiển thị kết quả giả lập (Demo) */
-        #result-card { display: none; margin-top: 20px; padding: 15px; border-radius: 10px; border-left: 5px solid #2ecc71; background: #e8f8f5; }
-        .info-label { font-weight: bold; color: #7f8c8d; font-size: 14px; }
-        .info-value { font-size: 18px; color: #2c3e50; margin-bottom: 10px; }
-        .status-active { color: #27ae60; font-weight: bold; }
+        /* Khu vực quét */
+        #reader { width: 100%; border-radius: 15px; overflow: hidden; background: #000; margin-bottom: 15px; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        
+        /* Nút bấm */
+        button { flex: 1; padding: 12px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.3s; font-size: 15px; }
+        .btn-scan { background-color: #1a73e8; color: white; }
+        .btn-stop { background-color: #ea4335; color: white; display: none; }
+        .btn-lookup { background-color: #34a853; color: white; width: 100%; margin-top: 10px; }
+        
+        input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 16px; box-sizing: border-box; outline: none; }
+        input:focus { border-color: #1a73e8; }
+
+        /* Card kết quả */
+        #result-card { display: none; margin-top: 20px; padding: 20px; border-radius: 15px; background: #f8f9fa; border: 1px solid #e0e0e0; }
+        .status-badge { display: inline-block; padding: 5px 12px; border-radius: 20px; background: #ceead6; color: #0d652d; font-size: 13px; font-weight: bold; margin-bottom: 10px; }
+        .info-item { margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .label { font-size: 12px; color: #70757a; text-transform: uppercase; }
+        .value { font-size: 17px; color: #202124; font-weight: 500; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Hệ Thống An Toàn Điện</h2>
-    <p style="text-align: center; color: #666;">Quét mã QR trên thẻ CCCD để tra cứu</p>
+    <h2>Hệ Thống An Toàn</h2>
+    <p style="text-align: center; font-size: 14px; color: #5f6368;">Quét mã QR trên CCCD để kiểm tra thẻ an toàn điện</p>
 
     <div id="reader"></div>
 
+    <div class="controls">
+        <button id="start-btn" class="btn-scan" onclick="startScanning()">Bắt đầu Quét QR</button>
+        <button id="stop-btn" class="btn-stop" onclick="stopScanning()">Dừng Quét</button>
+    </div>
+
     <div class="input-group">
-        <input type="text" id="cccd-input" placeholder="Hoặc nhập thủ công số CCCD">
-        <button onclick="simulateLookup()">Tra cứu thủ công</button>
+        <input type="text" id="cccd-input" placeholder="Nhập số CCCD thủ công">
+        <button class="btn-lookup" onclick="simulateLookup()">Tra cứu</button>
     </div>
 
     <div id="result-card">
-        <h3 style="margin-top: 0; color: #27ae60;">✓ Thông tin hợp lệ</h3>
-        <div class="info-label">Số CCCD:</div>
-        <div id="res-cccd" class="info-value">-</div>
+        <div class="status-badge">✓ ĐÃ CẤP THẺ ĐIỆN TỬ</div>
         
-        <div class="info-label">Họ tên nhân viên:</div>
-        <div id="res-name" class="info-value">-</div>
+        <div class="info-item">
+            <div class="label">Họ và tên</div>
+            <div id="res-name" class="value">-</div>
+        </div>
 
-        <div class="info-label">Bậc an toàn điện:</div>
-        <div id="res-level" class="info-value">Bậc 3/5</div>
+        <div class="info-item">
+            <div class="label">Số định danh (CCCD)</div>
+            <div id="res-cccd" class="value">-</div>
+        </div>
 
-        <div class="info-label">Trạng thái:</div>
-        <div class="status-active">ĐANG CÒN HIỆU LỰC</div>
+        <div class="info-item">
+            <div class="label">Bậc an toàn điện</div>
+            <div class="value" style="color: #1a73e8;">Bậc 3 / 5</div>
+        </div>
+
+        <div class="info-item">
+            <div class="label">Ngày hết hạn</div>
+            <div class="value">20/12/2026</div>
+        </div>
     </div>
 </div>
 
 <script>
-    // 1. Cấu hình máy quét mã QR
     const html5QrCode = new Html5Qrcode("reader");
-    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
 
-    // Bắt đầu quét
-    html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
-        // Xử lý dữ liệu sau khi quét thành công
-        // Dữ liệu QR CCCD thường là: 03809xxxxxxx|Số cũ|Họ tên|Ngày sinh|...
-        const parts = decodedText.split('|');
-        const cccdNumber = parts[0];
-        const fullName = parts[2] || "Nguyễn Văn A (Demo)";
+    function startScanning() {
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'inline-block';
+        document.getElementById('result-card').style.display = 'none';
 
-        // Hiển thị lên giao diện
-        showResult(cccdNumber, fullName);
-        
-        // (Tùy chọn) Dừng camera sau khi quét xong để tiết kiệm pin
-        // html5QrCode.stop();
-    });
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
-    // 2. Hàm hiển thị kết quả giả lập
+        // Ưu tiên camera sau (facingMode: environment)
+        html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
+            // Xử lý chuỗi dữ liệu CCCD của Bộ Công An
+            const parts = decodedText.split('|');
+            const cccdNumber = parts[0];
+            const fullName = parts[2] || "Nhân viên Demo";
+
+            showResult(cccdNumber, fullName);
+            stopScanning(); // Dừng camera sau khi quét thành công
+        }).catch(err => {
+            alert("Lỗi camera: " + err);
+            stopScanning();
+        });
+    }
+
+    function stopScanning() {
+        html5QrCode.stop().then(() => {
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+        }).catch(err => console.log(err));
+    }
+
     function showResult(cccd, name) {
         document.getElementById('cccd-input').value = cccd;
         document.getElementById('res-cccd').innerText = cccd;
         document.getElementById('res-name').innerText = name;
         document.getElementById('result-card').style.display = 'block';
-        
-        // Hiệu ứng cuộn xuống kết quả
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }
 
-    // 3. Hàm tra cứu thủ công (Giả lập)
     function simulateLookup() {
         const val = document.getElementById('cccd-input').value;
         if (val.length < 9) {
-            alert("Vui lòng nhập số CCCD hợp lệ");
+            alert("Vui lòng nhập số CCCD");
             return;
         }
-        showResult(val, "Nhân viên Demo (Dữ liệu mẫu)");
+        showResult(val, "Dữ liệu mẫu từ hệ thống");
     }
 </script>
 
 </body>
 </html>
+
