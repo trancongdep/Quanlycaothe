@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>HT GIÁM SÁT & XỬ LÝ SỰ CỐ (V9.0)</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+
+    <style>
+        :root { --panel-color: #27293d; --text-color: #e1e1e6; --accent: #00f2c3; --danger: #ff3e3e; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #1e1e2f; color: var(--text-color); display: flex; height: 100vh; overflow: hidden; }
+        
+        .sidebar { width: 320px; background: var(--panel-color); padding: 20px; z-index: 1000; display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
+        #map { flex: 1; height: 100%; z-index: 1; }
+        .dashboard-overlay { position: absolute; bottom: 20px; left: 360px; right: 20px; height: 120px; background: rgba(39, 41, 61, 0.95); border-radius: 8px; border: 1px solid #444; z-index: 998; padding: 10px; display: flex; }
+        canvas#signalChart { flex: 1; background: #000; border-radius: 4px; }
+        
+        /* ALERT BOX */
+        .escalation-box { margin-top: 15px; padding: 15px; background: #3a1c1c; border: 1px solid var(--danger); border-radius: 6px; display: none; animation: flashRed 2s infinite; }
+        @keyframes flashRed { 0% { box-shadow: 0 0 5px red; } 50% { box-shadow: 0 0 20px red; } 100% { box-shadow: 0 0 5px red; } }
+        .timer-bar-bg { width: 100%; height: 8px; background: #555; border-radius: 4px; margin: 10px 0; overflow: hidden; }
+        .timer-bar-fill { height: 100%; background: var(--danger); width: 100%; transition: width 1s linear; }
+
+        /* MANUAL INPUT BUTTON */
+        .btn-manual-alert {
+            background: var(--danger); color: white; border: none; padding: 15px; 
+            border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; 
+            width: 100%; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 10px;
+            box-shadow: 0 4px 10px rgba(255, 62, 62, 0.3); transition: 0.3s;
+        }
+        .btn-manual-alert:hover { background: #d32f2f; transform: scale(1.02); }
+
+        /* MODAL STYLES */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: none; justify-content: center; align-items: center; }
+        .modal-box { background: #2d3035; width: 450px; padding: 25px; border-radius: 8px; border: 1px solid #444; position: relative; }
+        .modal-header { font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; color: var(--accent); border-bottom: 1px solid #444; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #aaa; font-size: 0.9rem; }
+        select, input, textarea { width: 100%; padding: 10px; background: #1a1c23; border: 1px solid #444; color: white; border-radius: 4px; box-sizing: border-box; }
+        
+        /* PHONE CALL UI (Giữ nguyên) */
+        .phone-screen { width: 320px; height: 550px; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); border-radius: 25px; border: 4px solid #333; padding: 30px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 0 60px rgba(255, 62, 62, 0.3); position: relative; }
+        .avatar-circle { width: 120px; height: 120px; border-radius: 50%; background: #444; margin: 40px 0; display: flex; justify-content: center; align-items: center; font-size: 50px; color: white; border: 2px solid white; animation: pulse-ring 2s infinite; }
+        .call-list { width: 100%; margin-top: auto; margin-bottom: 20px; }
+        .call-step { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #888; font-size: 0.8rem; }
+        .call-step.active { color: white; font-weight: bold; background: rgba(255,255,255,0.1); border-radius: 5px; }
+        
+        /* Marker & List */
+        .route-item { padding: 12px; border-bottom: 1px solid #444; cursor: pointer; } .active-route { border-left: 4px solid var(--accent); background: rgba(0,242,195,0.1); }
+        .waypoint-marker { background: #fff; border: 2px solid #333; border-radius: 50%; }
+        .btn-tele { background: #2AABEE; color: white; border: none; padding: 8px; width: 100%; margin-top: 5px; cursor: pointer; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2 style="color: var(--accent);">TRUNG TÂM GIÁM SÁT</h2>
+        
+        <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+            <label style="font-size: 0.7rem;">CẤU HÌNH BOT TELEGRAM</label>
+            <input type="text" id="tele-token" value="8208436543:AAGj4e_2v_QWMBs8v5PkMEMWAo8M1xQaGuQ" style="width:100%; margin-bottom:5px;">
+            <input type="text" id="tele-chatid" placeholder="Chat ID (-xxx)..." style="width:100%;">
+        </div>
+
+        <button class="btn-manual-alert" onclick="openManualModal()">
+            <i class="fas fa-exclamation-triangle"></i> BÁO SỰ CỐ THỦ CÔNG
+        </button>
+
+        <h3>Danh sách Tuyến cáp</h3>
+        <div id="route-list" style="flex: 1; overflow-y: auto; border-top: 1px solid #444;"></div>
+        
+        <div id="escalation-box" class="escalation-box">
+            <div style="display:flex; justify-content:space-between; align-items:center">
+                <span style="color:white; font-weight:bold">⚠️ CHỜ XỬ LÝ: <span id="alert-source">---</span></span>
+                <span id="timer-text" style="font-weight:bold; font-size:1.2rem; color:white">60s</span>
+            </div>
+            <div class="timer-bar-bg"><div id="timer-fill" class="timer-bar-fill"></div></div>
+            <div style="font-size:0.8rem; color:#aaa">Sẽ gọi điện cho lãnh đạo nếu quá hạn.</div>
+            <button onclick="acknowledgeAlert()" style="width:100%; margin-top:10px; background:#444; color:white; border:none; padding:8px; cursor:pointer; font-weight:bold">
+                <i class="fas fa-check"></i> TIẾP NHẬN & HỦY GỌI
+            </button>
+        </div>
+    </div>
+
+    <div id="map"></div>
+    <div class="dashboard-overlay"><canvas id="signalChart"></canvas></div>
+
+    <div id="manual-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">NHẬP THÔNG TIN SỰ CỐ (DỰ PHÒNG)</div>
+            
+            <div class="form-group">
+                <label>1. Chọn Tuyến cáp / Đường dây:</label>
+                <select id="sel-route" onchange="updateWaypointSelect()">
+                    <option value="">-- Chọn tuyến --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>2. Chọn Vị trí (Trụ/Hầm):</label>
+                <select id="sel-point" disabled>
+                    <option value="">-- Chọn tuyến trước --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>3. Loại sự cố:</label>
+                <select id="sel-type">
+                    <option value="Xâm phạm hành lang">🚧 Xâm phạm hành lang (Xe cẩu/Đào đất)</option>
+                    <option value="Sét đánh/Phóng điện">⚡ Sét đánh / Phóng điện (SCADA)</option>
+                    <option value="Hư hỏng thiết bị">🔥 Hư hỏng thiết bị / Cháy nổ</option>
+                    <option value="Khác">❓ Khác</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Ghi chú thêm:</label>
+                <textarea id="inp-manual-note" placeholder="Mô tả chi tiết..."></textarea>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                <button onclick="closeManualModal()" style="background:#444; color:white; border:none; padding:10px 20px; cursor:pointer; border-radius:4px;">Hủy</button>
+                <button onclick="submitManualAlert()" style="background:var(--danger); color:white; border:none; padding:10px 20px; cursor:pointer; border-radius:4px; font-weight:bold;">🚨 KÍCH HOẠT CẢNH BÁO</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="call-modal" class="modal-overlay" style="z-index: 3000;">
+        <div class="phone-screen">
+            <div style="color:#aaa; font-size:0.9rem; margin-top:30px;">DIALING...</div>
+            <div class="call-name" id="call-name" style="font-size:26px; font-weight:bold; color:white; margin-top:10px; text-align:center;">---</div>
+            <div class="call-role" id="call-role" style="color:var(--accent); font-weight:bold; margin-top:5px; text-transform:uppercase; font-size:0.8rem; border:1px solid var(--accent); padding:2px 8px; border-radius:10px;">---</div>
+            <div class="avatar-circle"><i class="fas fa-user"></i></div>
+            <div class="call-list" id="call-queue-ui"></div>
+            <button onclick="endCall()" style="width:60px; height:60px; border-radius:50%; background:#ff3b30; color:white; border:none; font-size:24px; cursor:pointer; display:flex; justify-content:center; align-items:center; margin-bottom:20px;"><i class="fas fa-phone-slash"></i></button>
+        </div>
+    </div>
+
+<script>
+    // --- 1. CONFIG & INIT ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyBAKgjfwqPcYhUxLo__ISxd7xax3GYZDkk",
+        authDomain: "das-2025.firebaseapp.com",
+        databaseURL: "https://das-2025-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "das-2025", 
+        storageBucket: "das-2025.firebasestorage.app", 
+        messagingSenderId: "911247179996", 
+        appId: "1:911247179996:web:ecce7b5227266573807419"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const map = L.map('map').setView([10.795, 106.68], 13);
+    L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', { maxZoom: 20 }).addTo(map);
+
+    // DỮ LIỆU NHÂN SỰ TỪ FIREBASE
+    let CONTACT_LIST = []; 
+    db.ref('config/contacts').on('value', snap => { CONTACT_LIST = snap.val() || []; });
+
+    let activeRouteId=null, routesData={}, routeLayers={}, waypointMarkers=[];
+    let countdownInterval, callInterval;
+    let timeLeft = 60; 
+    let currentCallIndex = 0;
+
+    // --- 2. LOAD TUYẾN CÁP ---
+    db.ref('config/routes').on('value', snap => {
+        routesData = snap.val() || {};
+        const listDiv = document.getElementById('route-list'); listDiv.innerHTML="";
+        
+        // Cập nhật Dropdown cho Form Thủ công
+        const selRoute = document.getElementById('sel-route');
+        selRoute.innerHTML = '<option value="">-- Chọn tuyến --</option>';
+
+        Object.keys(routesData).forEach((key, idx) => {
+            const r = routesData[key];
+            // 1. Vẽ Map
+            if(routeLayers[key]) map.removeLayer(routeLayers[key]);
+            routeLayers[key] = L.polyline(r.path, {color:r.color}).addTo(map);
+            
+            // 2. Thêm vào List bên trái
+            const item = document.createElement('div');
+            item.className = `route-item ${activeRouteId===key?'active-route':''}`;
+            item.innerHTML = `<b style="color:${r.color}">●</b> ${r.name}`;
+            item.onclick = ()=>selectRoute(key);
+            listDiv.appendChild(item);
+
+            // 3. Thêm vào Dropdown Form
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.innerText = r.name;
+            selRoute.appendChild(opt);
+
+            if(idx===0 && !activeRouteId) selectRoute(key);
+        });
+        if(activeRouteId) drawWaypoints(activeRouteId);
+    });
+
+    function selectRoute(id){ activeRouteId=id; document.querySelectorAll('.route-item').forEach(e=>e.classList.remove('active-route')); drawWaypoints(id); map.fitBounds(routeLayers[id].getBounds()); }
+
+    function drawWaypoints(id){
+        waypointMarkers.forEach(m=>map.removeLayer(m)); waypointMarkers=[];
+        const r = routesData[id]; if(!r.waypoints) return;
+        r.waypoints.forEach((wp, idx)=>{
+            const m = L.marker([wp.lat, wp.lng], {icon: L.divIcon({className:'waypoint-marker', iconSize:[12,12]})}).addTo(map);
+            m.bindPopup(`<b>${wp.name}</b><br><button class="btn-tele" onclick="startIncidentProtocol('${wp.name}', ${wp.lat}, ${wp.lng}, 'Auto-Detect')"><i class="fas fa-bell"></i> KÍCH HOẠT (AUTO)</button>`);
+            waypointMarkers.push(m);
+        });
+    }
+
+    // --- 3. LOGIC FORM THỦ CÔNG (MANUAL INPUT) ---
+    function openManualModal() { document.getElementById('manual-modal').style.display='flex'; }
+    function closeManualModal() { document.getElementById('manual-modal').style.display='none'; }
+
+    function updateWaypointSelect() {
+        const routeId = document.getElementById('sel-route').value;
+        const selPoint = document.getElementById('sel-point');
+        selPoint.innerHTML = "";
+        selPoint.disabled = !routeId;
+
+        if(routeId && routesData[routeId].waypoints) {
+            routesData[routeId].waypoints.forEach((wp, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx; // Lưu index để truy xuất lại
+                opt.innerText = wp.name;
+                selPoint.appendChild(opt);
+            });
+        }
+    }
+
+    function submitManualAlert() {
+        const routeId = document.getElementById('sel-route').value;
+        const wpIdx = document.getElementById('sel-point').value;
+        const type = document.getElementById('sel-type').value;
+        const note = document.getElementById('inp-manual-note').value;
+
+        if(!routeId || wpIdx === "") { alert("Vui lòng chọn vị trí!"); return; }
+
+        const wp = routesData[routeId].waypoints[wpIdx];
+        const incidentName = `${wp.name} (${type})`;
+
+        closeManualModal();
+        
+        // Kích hoạt quy trình giống hệt Auto
+        startIncidentProtocol(incidentName, wp.lat, wp.lng, "Nhập thủ công");
+        
+        // Zoom đến điểm đó
+        map.setView([wp.lat, wp.lng], 16);
+    }
+
+    // --- 4. QUY TRÌNH XỬ LÝ CHUNG (CORE WORKFLOW) ---
+    function startIncidentProtocol(name, lat, lng, source) {
+        document.getElementById('alert-source').innerText = source || "Hệ thống";
+        sendTelegram(name, lat, lng, source);
+        startCountdown(name);
+    }
+
+    function sendTelegram(name, lat, lng, source) {
+        const token = document.getElementById('tele-token').value;
+        const chatId = document.getElementById('tele-chatid').value;
+        if(!token || !chatId) return;
+        
+        const mapLink = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+        const text = encodeURIComponent(`🚨 **SỰ CỐ KHẨN CẤP**\n⚠️ Nguồn: ${source}\n📍 Vị trí: ${name}\n⏳ **YÊU CẦU XỬ LÝ NGAY**\n\n👉 Map: ${mapLink}`);
+        fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${text}&parse_mode=Markdown`); 
+    }
+
+    function startCountdown(locationName) {
+        clearInterval(countdownInterval);
+        timeLeft = 60; // 60s
+        
+        document.getElementById('escalation-box').style.display = 'block';
+        const timerText = document.getElementById('timer-text');
+        const timerFill = document.getElementById('timer-fill');
+
+        countdownInterval = setInterval(() => {
+            timeLeft--;
+            timerText.innerText = timeLeft + "s";
+            timerFill.style.width = (timeLeft/60 * 100) + "%";
+
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+                startMultiCall(locationName);
+            }
+        }, 1000);
+    }
+
+    function acknowledgeAlert() {
+        clearInterval(countdownInterval);
+        document.getElementById('escalation-box').style.display = 'none';
+        alert("✅ Đã xác nhận tiếp nhận sự cố. Quy trình leo thang đã dừng.");
+    }
+
+    // --- 5. MULTI-CALL LOGIC ---
+    function startMultiCall(locationName) {
+        currentCallIndex = 0;
+        document.getElementById('call-modal').style.display = 'flex';
+        const listUI = document.getElementById('call-queue-ui');
+        listUI.innerHTML = "";
+        
+        if (CONTACT_LIST.length === 0) listUI.innerHTML = "Chưa có dữ liệu nhân sự.";
+        CONTACT_LIST.forEach((c, i) => {
+            listUI.innerHTML += `<div class="call-step" id="call-step-${i}" style="color:#aaa; border-bottom:1px solid #444; padding:5px;">${c.role}: ${c.name}</div>`;
+        });
+        processCallQueue(locationName);
+    }
+
+    function processCallQueue(locationName) {
+        if (currentCallIndex >= CONTACT_LIST.length) {
+            document.getElementById('call-name').innerText = "TRUNG TÂM";
+            speak("Không ai nghe máy. Chuyển cuộc gọi về trung tâm.");
+            return;
+        }
+        const contact = CONTACT_LIST[currentCallIndex];
+        document.getElementById('call-name').innerText = contact.name;
+        document.getElementById('call-role').innerText = contact.role;
+        
+        document.querySelectorAll('.call-step').forEach(e => e.style.color = "#aaa");
+        document.getElementById(`call-step-${currentCallIndex}`).style.color = "white";
+        document.getElementById(`call-step-${currentCallIndex}`).style.fontWeight = "bold";
+
+        speak(`Đang gọi ${contact.role}, ${contact.name}. Sự cố tại ${locationName}.`);
+
+        callInterval = setTimeout(() => {
+            currentCallIndex++;
+            processCallQueue(locationName);
+        }, 8000);
+    }
+
+    function speak(text) {
+        const msg = new SpeechSynthesisUtterance(); msg.text = text; msg.lang = 'vi-VN'; 
+        window.speechSynthesis.cancel(); window.speechSynthesis.speak(msg);
+    }
+    function endCall() { clearTimeout(callInterval); document.getElementById('call-modal').style.display='none'; window.speechSynthesis.cancel(); }
+
+    // Fake Chart
+    const ctx = document.getElementById('signalChart').getContext('2d'); let data = new Array(100).fill(0);
+    function loop(){ ctx.clearRect(0,0,300,150); ctx.beginPath(); ctx.strokeStyle='#00f2c3'; data.push((Math.random()-0.5)*5); data.shift(); data.forEach((v,i)=> { if(i==0) ctx.moveTo(i*3, 60-v); else ctx.lineTo(i*3, 60-v); }); ctx.stroke(); requestAnimationFrame(loop); } loop();
+
+</script>
+</body>
+</html>
